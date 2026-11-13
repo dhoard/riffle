@@ -1,0 +1,34 @@
+# Example AI harness settings
+name = Amanda
+provider = anthropic
+greeting = "  Hello!  "
+
+model = {
+    name = claude-sonnet
+    temperature = @decimal 0.7
+    maxTokens = @int 8192
+    stop = @null
+}
+
+tools = [
+    bash
+    read
+    edit
+    write
+]
+
+permissions = {
+    shell = {
+        enabled = @boolean true
+        timeoutMillis = @long 60000
+    }
+    network = {}
+}
+
+prompts = [
+    # Strings are single-line. Use \n inside a quoted string for a line break.
+    "Use punctuation freely: # ; : [ ] { } =\nContinue on the next line."
+
+    # Quotes preserve leading and trailing whitespace.
+    "Preserve this leading whitespace:  "
+]

@@ -1,0 +1,26 @@
+schemaVersion = @int 1
+provider = chatgpt
+model = gpt-6-sol
+transport = chatgpt-oauth
+capabilities = {
+    tools = @boolean true
+    streaming = @boolean true
+    contextWindow = @int 272000
+    maxOutputTokens = @int 128000
+    reasoning = [
+        none
+        low
+        medium
+        high
+        xhigh
+        max
+    ]
+    defaultReasoning = high
+    tokenizer = heuristic
+    replayRequirements = [
+        chatgpt-oauth
+    ]
+}
+options = {
+    chatgpt-oauth = {}
+}
