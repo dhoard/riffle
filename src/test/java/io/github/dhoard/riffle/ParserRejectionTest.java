@@ -74,6 +74,8 @@ class ParserRejectionTest {
                 Arguments.of("typed key", "@int 1 = a\n", RiffleError.INVALID_KEY, 1),
                 Arguments.of("unterminated string", "x = \"abc\n", RiffleError.UNTERMINATED_STRING, 1),
                 Arguments.of("invalid escape", "x = \"bad\\q\"\n", RiffleError.INVALID_ESCAPE, 1),
+                Arguments.of("dangling escape before boundary", "x = \"abc\\\"\n", RiffleError.INVALID_ESCAPE, 1),
+                Arguments.of("trailing tokens after boundary", "x = \"a\" junk\n", RiffleError.TRAILING_TOKENS, 1),
                 Arguments.of("short unicode escape", "x = \"\\u12\"\n", RiffleError.INVALID_ESCAPE, 1),
                 Arguments.of("isolated surrogate", "x = \"\\uD83D\"\n", RiffleError.INVALID_ESCAPE, 1),
                 Arguments.of("unclosed map", "x = {\n y = z\n", RiffleError.UNCLOSED_COLLECTION, 1),

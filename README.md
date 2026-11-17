@@ -127,8 +127,10 @@ The Java column is informative. The portable definitions and ranges are in [`LAN
 - Control characters are invalid in a bare string; quote and escape them.
 
 ### Quoted strings
+- A quoted **value** is EOL-delimited: its opening and closing `"` are the first and last quotes before optional trailing whitespace and an optional inline comment. Interior `"` characters are literal data; `\"` is still accepted and means the same thing. A closing quote is required on the line.
 - Escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f` and `\uXXXX` with surrogate pairs handled correctly.
 - Invalid escapes, isolated surrogates, unclosed quotes and literal control characters are errors.
+- Quoted **keys** keep their old rule: the first unescaped `"` closes the key, because a key ends at `=` rather than EOL. Interior quotes in keys must be written `\"`.
 
 ```riffle
 literalMarker = "@int 123"
@@ -136,7 +138,11 @@ literalComment = "# not a comment"
 "display name" = Jane Doe
 padded = "  keeps spaces  "
 multiline = "line one\nline two"
+a = "He said "hello""
+b = "He said \"hello\""
 ```
+
+Both `a` and `b` above decode to `He said "hello"`. When a value must be quoted, the canonical writer prefers the literal form. For quoted values, an inline comment is recognized before a later quote, so `k = "a # b" # comment "text"` has value `a # b`. When a value needs `" # text` or `" // text` as data, escape that interior quote: `k = "a\" # text"`. Keys keep emitting escaped interior quotes.
 
 The writer removes quotes that are not needed (`"display name"` keeps them, `Jane Doe` does not) and escapes line breaks.
 

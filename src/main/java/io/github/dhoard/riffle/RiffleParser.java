@@ -1,6 +1,7 @@
 package io.github.dhoard.riffle;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -175,7 +176,7 @@ final class RiffleParser {
             int pos = start;
             String key;
             if (first == '"') {
-                Quoted quoted = quoted(raw, pos, index);
+                Quoted quoted = quotedKey(raw, pos, index);
                 key = quoted.text;
                 pos = Syntax.firstNonWhitespace(raw, quoted.end);
                 if (pos >= raw.length() || raw.charAt(pos) != '=') {
@@ -268,7 +269,7 @@ final class RiffleParser {
         RiffleLocation location = at(lineIndex, from);
         switch (first) {
             case '"' -> {
-                Quoted quoted = quoted(line, from, lineIndex);
+                Quoted quoted = quotedValue(line, from, lineIndex);
                 onlyComment(line, quoted.end, lineIndex);
                 return new RiffleString(quoted.text, path, location);
             }
@@ -347,7 +348,7 @@ final class RiffleParser {
                             Math.min(afterWord, Math.max(line.length() - 1, 0)));
                 }
                 if (line.charAt(afterWord) == '"') {
-                    Quoted quoted = quoted(line, afterWord, lineIndex);
+                    Quoted quoted = quotedValue(line, afterWord, lineIndex);
                     onlyComment(line, quoted.end, lineIndex);
                     return new RiffleString(quoted.text, path, location);
                 }
@@ -388,7 +389,7 @@ final class RiffleParser {
             }
             case "string" -> {
                 if (first == '"') {
-                    Quoted quoted = quoted(line, from, lineIndex);
+                    Quoted quoted = quotedValue(line, from, lineIndex);
                     onlyComment(line, quoted.end, lineIndex);
                     return new RiffleString(quoted.text, path, location);
                 }
@@ -518,13 +519,48 @@ final class RiffleParser {
      */
     private BigDecimal decimal(String payload, int lineIndex, int column) {
         try {
-            return RiffleDecimal.normalize(new BigDecimal(payload));
+            return RiffleDecimal.normalize(parseDecimal(payload));
         } catch (NumberFormatException | ArithmeticException e) {
             throw error(
                     RiffleError.NUMBER_OUT_OF_RANGE,
                     "decimal is outside the supported exponent range",
                     lineIndex,
                     column);
+        }
+    }
+
+    /**
+     * Parses a validated decimal token. Java 17's {@code BigDecimal(String)} rejects exponent
+     * {@code 2147483648} even though the equivalent scale {@code Integer.MIN_VALUE} is legal and
+     * the canonical writer emits that exponent for {@code 10e2147483647}. On that failure, rebuild
+     * the value from its unscaled digits and scale; genuinely out-of-range scales still fail.
+     */
+    private static BigDecimal parseDecimal(String payload) {
+        try {
+            return new BigDecimal(payload);
+        } catch (NumberFormatException original) {
+            int exponentAt = payload.indexOf('e');
+            if (exponentAt < 0) {
+                exponentAt = payload.indexOf('E');
+            }
+            if (exponentAt < 0) {
+                throw original;
+            }
+            long exponent;
+            try {
+                exponent = Long.parseLong(payload.substring(exponentAt + 1));
+            } catch (NumberFormatException e) {
+                throw original;
+            }
+            String mantissa = payload.substring(0, exponentAt);
+            int dot = mantissa.indexOf('.');
+            int fractionDigits = dot < 0 ? 0 : mantissa.length() - dot - 1;
+            long scale = fractionDigits - exponent;
+            if (scale < Integer.MIN_VALUE || scale > Integer.MAX_VALUE) {
+                throw original;
+            }
+            String digits = dot < 0 ? mantissa : mantissa.substring(0, dot) + mantissa.substring(dot + 1);
+            return new BigDecimal(new BigInteger(digits), (int) scale);
         }
     }
 
@@ -554,16 +590,82 @@ final class RiffleParser {
 
     private record Quoted(String text, int end) {}
 
-    private Quoted quoted(String line, int start, int lineIndex) {
-        StringBuilder out = new StringBuilder();
+    /**
+     * Parses a quoted key. A key ends at {@code =}, so the first unescaped quote closes it;
+     * values use {@link #quotedValue}, whose delimiter is EOL-relative. Escape sequences never
+     * contain a literal quote outside of {@code \"}, so skipping one character after a backslash
+     * is sufficient to find the key's delimiter. Any malformed escape is then reported by
+     * {@link #decodeBody} at its original position.
+     */
+    private Quoted quotedKey(String line, int start, int lineIndex) {
         int i = start + 1;
         while (i < line.length()) {
             char c = line.charAt(i);
             if (c == '"') {
-                return new Quoted(out.toString(), i + 1);
+                return new Quoted(decodeBody(line, start + 1, i, lineIndex), i + 1);
             }
             if (c == '\\') {
                 if (i + 1 >= line.length()) {
+                    throw error(RiffleError.INVALID_ESCAPE, "unterminated escape", lineIndex, i);
+                }
+                i++;
+            }
+            i++;
+        }
+        throw error(RiffleError.UNTERMINATED_STRING, "unterminated quoted string", lineIndex, start);
+    }
+
+    /**
+     * Parses an EOL-delimited quoted value. The closing delimiter is the last quote before an
+     * optional valid inline comment. Comment markers are tried in source order: the first one
+     * preceded by a syntactically complete quoted body is the trailing comment, so quotes in that
+     * comment are ignored (LANGUAGE_SPEC.md §5.2). Candidates with an invalid interior are skipped
+     * so that, for example, {@code "a\" # b"} still decodes as {@code a" # b}.
+     */
+    private Quoted quotedValue(String line, int start, int lineIndex) {
+        int marker = commentStart(line, start + 1);
+        while (marker < line.length()) {
+            int candidate = lastQuote(line, start + 1, marker);
+            if (candidate > start && trimmedEnd(line, start, marker) == candidate + 1) {
+                try {
+                    String text = decodeBody(line, start + 1, candidate, lineIndex);
+                    return new Quoted(text, candidate + 1);
+                } catch (RiffleParseException e) {
+                    // Not a boundary; a later comment marker may be the trailing comment.
+                }
+            }
+            marker = commentStart(line, marker + 1);
+        }
+        int closing = lastQuote(line, start + 1, line.length());
+        if (closing < 0) {
+            throw error(RiffleError.UNTERMINATED_STRING, "unterminated quoted string", lineIndex, start);
+        }
+        return new Quoted(decodeBody(line, start + 1, closing, lineIndex), closing + 1);
+    }
+
+    /** Returns the last quote in {@code [from, to)}, or {@code -1}. */
+    private static int lastQuote(String line, int from, int to) {
+        int index = line.lastIndexOf('"', to - 1);
+        return index >= from ? index : -1;
+    }
+
+    /** Returns the exclusive end of {@code [from, to)} after trailing horizontal whitespace. */
+    private static int trimmedEnd(String line, int from, int to) {
+        int i = to;
+        while (i > from && Syntax.isHorizontalWhitespace(line.charAt(i - 1))) {
+            i--;
+        }
+        return i;
+    }
+
+    /** Decodes the shared escape vocabulary in {@code [from, to)}; quotes in the span are literal. */
+    private String decodeBody(String line, int from, int to, int lineIndex) {
+        StringBuilder out = new StringBuilder();
+        int i = from;
+        while (i < to) {
+            char c = line.charAt(i);
+            if (c == '\\') {
+                if (i + 1 >= to) {
                     throw error(RiffleError.INVALID_ESCAPE, "unterminated escape", lineIndex, i);
                 }
                 char escape = line.charAt(i + 1);
@@ -576,7 +678,7 @@ final class RiffleParser {
                     case 'b' -> out.append('\b');
                     case 'f' -> out.append('\f');
                     case 'u' -> {
-                        i = unicodeEscape(line, i, lineIndex, out);
+                        i = unicodeEscape(line, i, to, lineIndex, out);
                         continue;
                     }
                     default ->
@@ -592,16 +694,16 @@ final class RiffleParser {
             out.append(c);
             i++;
         }
-        throw error(RiffleError.UNTERMINATED_STRING, "unterminated quoted string", lineIndex, start);
+        return out.toString();
     }
 
-    private int unicodeEscape(String line, int backslash, int lineIndex, StringBuilder out) {
+    private int unicodeEscape(String line, int backslash, int to, int lineIndex, StringBuilder out) {
         int i = backslash + 2;
-        int codePoint = hex4(line, i, lineIndex, backslash);
+        int codePoint = hex4(line, i, to, lineIndex, backslash);
         i += 4;
         if (Character.isHighSurrogate((char) codePoint)) {
-            if (i + 6 <= line.length() && line.charAt(i) == '\\' && line.charAt(i + 1) == 'u') {
-                int low = hex4(line, i + 2, lineIndex, backslash);
+            if (i + 6 <= to && line.charAt(i) == '\\' && line.charAt(i + 1) == 'u') {
+                int low = hex4(line, i + 2, to, lineIndex, backslash);
                 if (Character.isLowSurrogate((char) low)) {
                     out.appendCodePoint(Character.toCodePoint((char) codePoint, (char) low));
                     return i + 6;
@@ -616,8 +718,8 @@ final class RiffleParser {
         return i;
     }
 
-    private int hex4(String line, int from, int lineIndex, int reportAt) {
-        if (from + 4 > line.length()) {
+    private int hex4(String line, int from, int to, int lineIndex, int reportAt) {
+        if (from + 4 > to) {
             throw error(RiffleError.INVALID_ESCAPE, "expected four hexadecimal digits", lineIndex, reportAt);
         }
         int value = 0;

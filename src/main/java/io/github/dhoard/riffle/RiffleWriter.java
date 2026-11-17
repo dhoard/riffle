@@ -74,11 +74,11 @@ final class RiffleWriter {
     }
 
     private static String key(String key) {
-        return Syntax.isBareKey(key) ? key : Syntax.quote(key);
+        return Syntax.isBareKey(key) ? key : Syntax.quoteKey(key);
     }
 
     private static String text(String text) {
-        return Syntax.isBareValue(text) ? text : Syntax.quote(text);
+        return Syntax.isBareValue(text) ? text : Syntax.quoteValue(text);
     }
 
     /**

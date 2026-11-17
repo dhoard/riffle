@@ -1,0 +1,22 @@
+literal = He said "hello"
+escaped = He said "hello"
+padded = "  padded  "
+literalQuotes = ""quoted""
+trailingQuote = hello"
+empty = ""
+hashComment = "a # b"
+slashComment = "a // b"
+ambiguousBoundary = a
+escapedBoundary = "a\" # text"
+bareQuotes = He said "hello"
+escapedBackslash = line \n
+escapedNewline = "line \n"
+canonicalLiteral = "  He said "hello"  "
+typed = He said "hello"
+list = [
+    one "two"
+    "a # b"
+]
+typedList = [
+    He said "hello"
+]

@@ -127,7 +127,7 @@ class WriterTest {
                 Arguments.of("}", "\"}\""),
                 Arguments.of("[", "\"[\""),
                 Arguments.of("]", "\"]\""),
-                Arguments.of("\"quoted\"", "\"\\\"quoted\\\"\""),
+                Arguments.of("\"quoted\"", "\"\"quoted\"\""),
                 Arguments.of("back\\slash", "back\\slash"),
                 Arguments.of("line1\nline2", "\"line1\\nline2\""),
                 Arguments.of("tab\there", "\"tab\\there\""),

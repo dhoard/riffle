@@ -62,6 +62,104 @@
       ]
     },
     {
+      "id": "valid.eol-quoted-strings",
+      "expectation": "valid",
+      "input": "valid/eol-quoted-strings.riffle",
+      "expectedCanonical": "canonical/eol-quoted-strings-expected.riffle",
+      "semantics": [
+        {
+          "path": "literal",
+          "kind": "string",
+          "value": "He said \"hello\""
+        },
+        {
+          "path": "escaped",
+          "kind": "string",
+          "value": "He said \"hello\""
+        },
+        {
+          "path": "padded",
+          "kind": "string",
+          "value": "  padded  "
+        },
+        {
+          "path": "literalQuotes",
+          "kind": "string",
+          "value": "\"quoted\""
+        },
+        {
+          "path": "trailingQuote",
+          "kind": "string",
+          "value": "hello\""
+        },
+        {
+          "path": "empty",
+          "kind": "string",
+          "value": ""
+        },
+        {
+          "path": "hashComment",
+          "kind": "string",
+          "value": "a # b"
+        },
+        {
+          "path": "slashComment",
+          "kind": "string",
+          "value": "a // b"
+        },
+        {
+          "path": "ambiguousBoundary",
+          "kind": "string",
+          "value": "a"
+        },
+        {
+          "path": "escapedBoundary",
+          "kind": "string",
+          "value": "a\" # text"
+        },
+        {
+          "path": "bareQuotes",
+          "kind": "string",
+          "value": "He said \"hello\""
+        },
+        {
+          "path": "escapedBackslash",
+          "kind": "string",
+          "value": "line \\n"
+        },
+        {
+          "path": "escapedNewline",
+          "kind": "string",
+          "value": "line \n"
+        },
+        {
+          "path": "canonicalLiteral",
+          "kind": "string",
+          "value": "  He said \"hello\"  "
+        },
+        {
+          "path": "typed",
+          "kind": "string",
+          "value": "He said \"hello\""
+        },
+        {
+          "path": "list[0]",
+          "kind": "string",
+          "value": "one \"two\""
+        },
+        {
+          "path": "list[1]",
+          "kind": "string",
+          "value": "a # b"
+        },
+        {
+          "path": "typedList[0]",
+          "kind": "string",
+          "value": "He said \"hello\""
+        }
+      ]
+    },
+    {
       "id": "valid.all-kinds",
       "expectation": "valid",
       "input": "valid/types.riffle",
@@ -579,6 +677,18 @@
       "expectation": "invalid",
       "input": "invalid/root-array.riffle",
       "errorCategory": "MISSING_EQUALS"
+    },
+    {
+      "id": "invalid.unterminated-quoted-value",
+      "expectation": "invalid",
+      "input": "invalid/unterminated-quoted-value.riffle",
+      "errorCategory": "UNTERMINATED_STRING"
+    },
+    {
+      "id": "invalid.dangling-escape-before-boundary",
+      "expectation": "invalid",
+      "input": "invalid/dangling-escape-before-boundary.riffle",
+      "errorCategory": "INVALID_ESCAPE"
     }
   ]
 }

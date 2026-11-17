@@ -151,6 +151,12 @@ A bare string MUST NOT contain an unescaped ASCII control character (`U+0000`–
 
 A double-quoted string is allowed anywhere a string value or key is allowed. Its first and last non-whitespace syntactic characters are `"`. It MUST have no trailing characters other than whitespace or a valid inline comment.
 
+**Quoted values** (ordinary values, `@string` payloads, and elements of untyped or `@string` arrays) are EOL-delimited. The opening delimiter is the first `"` of the value fragment. The closing delimiter is the **last `"` of that fragment**, before optional trailing horizontal whitespace and an optional valid inline comment (comment precedence below). Every `"` inside the two delimiters is literal data, whether written literally or as `\"`; both spellings decode to the same quote character. The closing delimiter is a delimiter even when the immediately preceding character is a backslash, so `x = "abc\"` has a closing quote but an unfinished interior escape and is `INVALID_ESCAPE`. To end a value with a literal quote, write `x = "abc\""` or `x = "abc""`. A quoted value with no closing delimiter on its physical line is `UNTERMINATED_STRING`; escape validation applies only to the interior span.
+
+**Comment precedence for quoted values.** Scan the value's line from left to right for positions where an inline comment marker (`#` or `//`) is syntactically valid (marker at the start of the line or preceded by whitespace). The **first** such position whose preceding text, after trimming trailing horizontal whitespace, ends in a `"` and whose interior span decodes without error is the trailing comment; that `"` is the closing delimiter and quotes inside the excluded comment are ignored. If no position qualifies, the closing delimiter is the last `"` on the line. This rule gives a valid trailing-comment boundary priority over a later quote, so `k = "a # b" # comment "text"` has value `a # b`. It also makes a quoted body ending in `" # text` or `" // text` intentionally ambiguous: `k = "a" # text"` is read as value `a` followed by comment `# text"`. Use `\"` for that interior quote when the text is data: `k = "a\" # text"` has value `a" # text`. If no comment is selected, anything after the closing delimiter other than horizontal whitespace or a valid comment is `TRAILING_TOKENS`.
+
+**Quoted keys are different and unchanged.** A key terminates at `=` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`. The EOL/last-quote rule and the comment precedence rule above apply only to values, not to keys.
+
 Supported escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f`, and `\uXXXX` (four ASCII hexadecimal digits). A `\uXXXX` escape denotes the code point with that value. An escape for a high surrogate MUST be immediately followed by an escape for a low surrogate; the pair denotes the corresponding supplementary code point. An isolated surrogate escape MUST be rejected with `INVALID_ESCAPE`. Invalid escape sequences and unclosed quotes MUST fail. Literal newlines, literal carriage returns, other unescaped control characters, and literal `U+FEFF` inside quoted strings are invalid; use `\uFEFF` for the last.
 
 Examples:
@@ -311,7 +317,7 @@ Two line-comment markers are supported: `#` and `//`.
 - A full-line comment begins after optional indentation with `#` or `//`.
 - An inline comment starts only when `#` or `//` is preceded by at least one ASCII space or tab and is outside a quoted string.
 - When no separating whitespace precedes a marker, it remains part of a bare string, including in `https://` URLs and `path#fragment`.
-- A `"` opens a quoted string only as the first character of a key or of a value. Elsewhere it is ordinary text, so in `k = he said "hi" # c` the marker starts a comment and the value is `he said "hi"`.
+- A `"` opens a quoted string only as the first character of a key or of a value. Elsewhere it is ordinary text, so in `k = he said "hi" # c` the marker starts a comment and the value is `he said "hi"`. For quoted values the closing delimiter and the first valid trailing-comment boundary are selected by the precedence rule in §5.2; quotes in the excluded comment are data of the comment, not of the value.
 - The characters following a comment marker up to the line ending are ignored.
 - Comments MAY follow entries, collection openers, and collection closers.
 
@@ -375,7 +381,7 @@ S                 = { " " | TAB } ;
 H                 = ( " " | TAB ), S ;
 ```
 
-`BlankOrComment`, `BareString`, `StringPayload`, `QuotedString`, `ElementOfDeclaredType`, `Body` association, and the lexer behavior for comments are defined by §§3–8 and are not independent token-level productions. A `Body` is present when the opener is the block form (`{`, `[`, or `@type [`); the inline empty forms (`{}`, `[]`, `@type []`) have no `Body`. It is specifically the body matching that opener, not an optional arbitrary suffix. A bare scalar is recognized only when the entire non-comment value fragment is consumed, subject to the reserved-prefix rules. This specification favors unambiguous implementation behavior over a compact standalone EBNF.
+`QuotedString` has two distinct delimiter rules: quoted values use the EOL/last-quote and comment-precedence rule of §5.2, while quoted keys retain the first-unescaped-quote rule of §5.2. `BlankOrComment`, `BareString`, `StringPayload`, `ElementOfDeclaredType`, `Body` association, and the lexer behavior for comments are defined by §§3–8 and are not independent token-level productions. A `Body` is present when the opener is the block form (`{`, `[`, or `@type [`); the inline empty forms (`{}`, `[]`, `@type []`) have no `Body`. It is specifically the body matching that opener, not an optional arbitrary suffix. A bare scalar is recognized only when the entire non-comment value fragment is consumed, subject to the reserved-prefix rules. This specification favors unambiguous implementation behavior over a compact standalone EBNF.
 
 ### 9.1 Parser algorithm (normative behavior)
 
@@ -442,7 +448,7 @@ Canonical output bytes MUST be:
 - A map root emits one `key = value` line per entry in insertion order.
 - An array emits one element per line in element order.
 - `{}` and `[]` are emitted for empty collections; nonempty collections use multiline block syntax.
-- Bare strings and bare keys are emitted only when they can be parsed back to the same string without ambiguity. Otherwise the serializer emits a quoted string using exactly the escapes in §5.2.
+- Bare strings and bare keys are emitted only when they can be parsed back to the same string without ambiguity. Otherwise the serializer emits a quoted string using exactly the escapes in §5.2. A quoted **value** emits interior `"` literally, except where a literal quote immediately followed by a literal space and a comment marker would become a closing delimiter under §5.2; that quote is emitted as `\"` instead. Tabs and other control characters are emitted as escapes and therefore cannot form that boundary. Quoted **keys** keep emitting interior quotes as `\"`.
 - A non-string scalar is emitted with `@int`, `@long`, `@decimal`, `@boolean`, or `@null`; strings are emitted without a marker unless the original string was explicitly typed (which has no semantic effect).
 - Every literal `U+FEFF` in a key or string is emitted as `\uFEFF`.
 - Typed arrays are emitted as ordinary arrays whose non-string elements carry explicit `@type` markers. Element order and kind are preserved; the original `@T [` annotation is not.

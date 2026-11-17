@@ -94,17 +94,35 @@ final class Syntax {
         return true;
     }
 
+    /** Returns {@code text} as a quoted map key; keys still close at the first unescaped quote. */
+    static String quoteKey(String text) {
+        return quote(text, true);
+    }
+
+    /** Returns {@code text} as an EOL-delimited quoted value with literal interior quotes. */
+    static String quoteValue(String text) {
+        return quote(text, false);
+    }
+
     /**
      * Returns {@code text} as a quoted string with the supported escapes. Control characters and
-     * byte-order marks are escaped, because neither may appear literally in a quoted string.
+     * byte-order marks are escaped, because neither may appear literally in a quoted string. A
+     * value's interior quotes stay literal unless one would be read as the closing delimiter
+     * before a trailing inline comment (LANGUAGE_SPEC.md §5.2).
      */
-    static String quote(String text) {
+    private static String quote(String text, boolean key) {
         StringBuilder out = new StringBuilder(text.length() + 2);
         out.append('"');
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             switch (c) {
-                case '"' -> out.append("\\\"");
+                case '"' -> {
+                    if (key || startsCommentAfter(text, i + 1)) {
+                        out.append("\\\"");
+                    } else {
+                        out.append('"');
+                    }
+                }
                 case '\\' -> out.append("\\\\");
                 case '\n' -> out.append("\\n");
                 case '\r' -> out.append("\\r");
@@ -121,6 +139,25 @@ final class Syntax {
             }
         }
         return out.append('"').toString();
+    }
+
+    /**
+     * Returns whether a comment marker starts after a literal space immediately following
+     * {@code from}. Such a marker would make the preceding quote a candidate closing delimiter,
+     * so the writer must escape that quote instead of emitting it literally. Tabs and other control
+     * characters are emitted as escapes, so they cannot separate a quote from a comment marker in
+     * the written source.
+     */
+    private static boolean startsCommentAfter(String text, int from) {
+        int i = from;
+        while (i < text.length() && text.charAt(i) == ' ') {
+            i++;
+        }
+        if (i == from || i >= text.length()) {
+            return false;
+        }
+        char c = text.charAt(i);
+        return c == '#' || (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/');
     }
 
     /** Returns whether {@code text} contains an unpaired surrogate. */

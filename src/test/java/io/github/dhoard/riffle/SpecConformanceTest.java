@@ -126,6 +126,33 @@ class SpecConformanceTest {
     }
 
     @Test
+    void quotedValueExamplesFromSection5_2() {
+        RiffleObject root = Riffle.parse("""
+                literal = "He said "hello""
+                escaped = "He said \\"hello\\""
+                padded = "  padded  "
+                quotes = ""quoted""
+                hash = "a # b" # comment "text"
+                slashes = "a // b" // comment "text"
+                commentAsData = "a\\" # text"
+                bare = He said "hello" # trailing comment
+                backslash = "line \\\\n"
+                newline = "line \\n"
+                """);
+        assertThat(root.get("literal").asString()).isEqualTo("He said \"hello\"");
+        assertThat(root.get("escaped").asString()).isEqualTo(root.get("literal").asString());
+        assertThat(root.get("padded").asString()).isEqualTo("  padded  ");
+        assertThat(root.get("quotes").asString()).isEqualTo("\"quoted\"");
+        assertThat(root.get("hash").asString()).isEqualTo("a # b");
+        assertThat(root.get("slashes").asString()).isEqualTo("a // b");
+        assertThat(root.get("commentAsData").asString()).isEqualTo("a\" # text");
+        assertThat(root.get("bare").asString()).isEqualTo("He said \"hello\"");
+        assertThat(root.get("backslash").asString()).isEqualTo("line \\n");
+        assertThat(root.get("newline").asString()).isEqualTo("line \n");
+        assertThat(Riffle.write(root)).isEqualTo(Riffle.write(Riffle.parse(Riffle.write(root))));
+    }
+
+    @Test
     void twoEntriesOnOneLineAreOneStringValue() {
         assertThat(Riffle.parse("x = 1 y = 2").get("x").asString()).isEqualTo("1 y = 2");
     }
