@@ -2,7 +2,7 @@ package io.github.dhoard.riffle;
 
 import java.util.Optional;
 
-/** An immutable boolean value, written {@code boolean : true}. */
+/** An immutable boolean value, written {@code @boolean true}. */
 public final class RiffleBoolean implements RiffleValue {
     private final boolean value;
     private final String path;

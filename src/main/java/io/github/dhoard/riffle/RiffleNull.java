@@ -3,7 +3,7 @@ package io.github.dhoard.riffle;
 import java.util.Optional;
 
 /**
- * The null value, written {@code null}.
+ * The null value, written {@code @null}.
  *
  * <p>All null values are equal. Code should use {@link #INSTANCE}; parsed nulls are distinct
  * instances only so that they can report their source location.</p>

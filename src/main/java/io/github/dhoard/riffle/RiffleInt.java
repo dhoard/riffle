@@ -2,7 +2,7 @@ package io.github.dhoard.riffle;
 
 import java.util.Optional;
 
-/** An immutable int value, written {@code int : 42}. */
+/** An immutable int value, written {@code @int 42}. */
 public final class RiffleInt implements RiffleValue {
     private final int value;
     private final String path;

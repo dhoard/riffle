@@ -89,7 +89,7 @@ The value model contains exactly these kinds:
 
 There is **no automatic type inference**. Thus `123`, `true`, `null`, and `~` are all strings; `@int 123`, `@boolean true`, and `@null` are not.
 
-The numeric types are distinct. `@int` MUST fit `[-2147483648, 2147483647]`; `@long` MUST fit `[-9223372036854775808, 9223372036854775807]`. `@decimal` has arbitrary precision and a finite base-10 value, not IEEE 754 NaN or infinity. Lexical scale is not part of the semantic value: `@decimal 1.0` and `@decimal 1` are the same value. The canonical serializer writes the normalized value (§11), so `@decimal 1.0` is written `@decimal 1`.
+The numeric types are distinct. `@int` MUST fit `[-2147483648, 2147483647]`; `@long` MUST fit `[-9223372036854775808, 9223372036854775807]`. `@decimal` has arbitrary precision and a finite base-10 value, not IEEE 754 NaN or infinity. Lexical scale is not part of the semantic value: `@decimal 1.0` and `@decimal 1` are the same value. The canonical serializer writes the normalized value (§11), so `@decimal 1.0` is written `@decimal 1`. An implementation MAY bound the exponent range of a decimal to that of its reference type (about ±2^31); a literal whose value or normalized form falls outside that range MUST fail with a range error (`NUMBER_OUT_OF_RANGE`).
 
 Type identifiers are lowercase ASCII and case-sensitive. Unknown identifiers such as `@float` MUST fail. Explicit `@string` is allowed for scalar strings even though strings are the default.
 
@@ -382,7 +382,9 @@ A serializer SHOULD produce deterministic, readable output:
 - `@int`, `@long`, `@decimal`, `@boolean`, `@null` for non-string scalars.
 - Typed arrays are authoring sugar and not part of the semantic value model, so the canonical serializer writes untyped arrays with `@type` element markers. A formatter operating on a syntax tree MAY preserve typed-array syntax if it retains that source information.
 - A decimal is written from its normalized value (§4), so `@decimal 1.0` is written `@decimal 1`.
+- A U+FEFF inside a value or key is written as a Unicode escape, because a literal byte-order mark is valid only at the start of a document (§3.1).
 - The document root is a map (§1), so a serializer MUST reject an array root rather than emit a document that cannot be reparsed.
+- A value tree that nests deeper than the implementation's documented limit (§7.4) has no valid document, so a serializer MAY reject it with a documented error instead of emitting text a conforming parser must refuse.
 
 Serialization MUST produce text that reparses to the same semantic value tree. It need not preserve comments, spacing, original quoting, or original typed-array annotations unless a separate lossless syntax-tree API is explicitly offered.
 

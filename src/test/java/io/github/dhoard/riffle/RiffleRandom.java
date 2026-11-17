@@ -11,7 +11,7 @@ import java.util.Random;
 final class RiffleRandom {
     private static final String[] PIECES = {
         "a", "b", "Z", "0", " ", "\t", "\"", "#", "/", "//", "|", "!", "@", ":", "=", "{", "}", "[", "]", "\n", "é",
-        "💡", "null", "true", "int", "\\", ";", ","
+        "💡", "null", "true", "int", "\\", ";", ",", "\uFEFF", "\u0000", "\u001f", "\u007F", "~"
     };
     private static final String[] SPECIAL = {
         "",
@@ -38,9 +38,14 @@ final class RiffleRandom {
         "\tb",
         "é",
         "💡",
+        "\uFEFF",
+        "\uFEFFx",
+        "x\uFEFFy",
+        "\u0000",
+        "\u007F",
         "https://x:1/y?a=b#c"
     };
-    private static final String[] KEY_PIECES = {"a", "b", "Z", "0", ".", "-", "_", " ", "=", "@", "é"};
+    private static final String[] KEY_PIECES = {"a", "b", "Z", "0", ".", "-", "_", " ", "=", "@", "é", "\n", "\uFEFF"};
 
     private final Random random;
 

@@ -2,6 +2,12 @@ package io.github.dhoard.riffle;
 
 /** Lexical rules shared by the parser and the writer. */
 final class Syntax {
+    /**
+     * The byte-order mark. It is legal only as the document's first character, so it is escaped
+     * wherever the writer would otherwise emit it inside a value or key.
+     */
+    static final char BYTE_ORDER_MARK = '\uFEFF';
+
     private Syntax() {}
 
     /** Riffle horizontal whitespace is space and tab. */
@@ -56,7 +62,10 @@ final class Syntax {
         return true;
     }
 
-    /** Returns whether {@code text} can be written as a bare value without changing meaning. */
+    /**
+     * Returns whether {@code text} can be written as a bare value without changing meaning. A
+     * byte-order mark cannot: the parser accepts one only at the start of a document.
+     */
     static boolean isBareValue(String text) {
         if (text.isEmpty()) {
             return false;
@@ -73,7 +82,7 @@ final class Syntax {
         }
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (isControl(c)) {
+            if (isControl(c) || c == BYTE_ORDER_MARK) {
                 return false;
             }
             if (c == '#' || (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/')) {
@@ -85,7 +94,10 @@ final class Syntax {
         return true;
     }
 
-    /** Returns {@code text} as a quoted string with the supported escapes. */
+    /**
+     * Returns {@code text} as a quoted string with the supported escapes. Control characters and
+     * byte-order marks are escaped, because neither may appear literally in a quoted string.
+     */
     static String quote(String text) {
         StringBuilder out = new StringBuilder(text.length() + 2);
         out.append('"');
@@ -100,7 +112,7 @@ final class Syntax {
                 case '\b' -> out.append("\\b");
                 case '\f' -> out.append("\\f");
                 default -> {
-                    if (isControl(c)) {
+                    if (isControl(c) || c == BYTE_ORDER_MARK) {
                         out.append(String.format("\\u%04X", (int) c));
                     } else {
                         out.append(c);

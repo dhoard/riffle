@@ -86,6 +86,7 @@ class ParserRejectionTest {
                 Arguments.of("control character", "x = a\u0001b\n", RiffleError.INVALID_CHARACTER, 1),
                 Arguments.of("tab in bare string", "x = a\tb\n", RiffleError.INVALID_CHARACTER, 1),
                 Arguments.of("lone carriage return", "x = a\r y = b\n", RiffleError.INVALID_LINE_ENDING, 1),
+                Arguments.of("carriage return at end of input", "x = a\r", RiffleError.INVALID_LINE_ENDING, 1),
                 Arguments.of("bom in the middle", "x = a\n\uFEFFy = b\n", RiffleError.INVALID_CHARACTER, 2),
                 Arguments.of("unpaired surrogate", "x = a\uD83Db\n", RiffleError.INVALID_UTF8, 1));
     }

@@ -14,8 +14,6 @@ import java.util.regex.Pattern;
  * ordinary text and only a marker that follows whitespace starts a comment.</p>
  */
 final class RiffleParser {
-    static final int MAX_DEPTH = 128;
-
     private static final Pattern INTEGER = Pattern.compile("-?(0|[1-9][0-9]*)");
     private static final Pattern DECIMAL = Pattern.compile("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?");
 
@@ -25,7 +23,7 @@ final class RiffleParser {
 
     RiffleParser(String text, String source) {
         this.source = source;
-        String body = text.startsWith("\uFEFF") ? text.substring(1) : text;
+        String body = !text.isEmpty() && text.charAt(0) == Syntax.BYTE_ORDER_MARK ? text.substring(1) : text;
         validateCodePoints(body);
         splitLines(body);
     }
@@ -53,7 +51,7 @@ final class RiffleParser {
             } else if (Character.isLowSurrogate(c)) {
                 throw new RiffleParseException(
                         RiffleError.INVALID_UTF8, "unpaired surrogate", new RiffleLocation(source, line, column));
-            } else if (c == '\uFEFF') {
+            } else if (c == Syntax.BYTE_ORDER_MARK) {
                 throw new RiffleParseException(
                         RiffleError.INVALID_CHARACTER,
                         "byte-order mark outside the start of the document",
@@ -498,7 +496,7 @@ final class RiffleParser {
                 if (!DECIMAL.matcher(payload).matches()) {
                     throw error(RiffleError.INVALID_TYPED_VALUE, "expected a decimal number", lineIndex, column);
                 }
-                return new RiffleDecimal(RiffleDecimal.normalize(new BigDecimal(payload)), path, location);
+                return new RiffleDecimal(decimal(payload, lineIndex, column), path, location);
             }
             case "boolean" -> {
                 if (payload.equals("true")) {
@@ -510,6 +508,23 @@ final class RiffleParser {
                 throw error(RiffleError.INVALID_TYPED_VALUE, "expected true or false", lineIndex, column);
             }
             default -> throw new IllegalStateException("unknown scalar type " + word);
+        }
+    }
+
+    /**
+     * Parses a decimal payload. A literal whose value or normalized scale is outside
+     * {@link BigDecimal}'s exponent range cannot be represented, so it is reported as a range
+     * error rather than as the runtime exception the JDK constructors raise.
+     */
+    private BigDecimal decimal(String payload, int lineIndex, int column) {
+        try {
+            return RiffleDecimal.normalize(new BigDecimal(payload));
+        } catch (NumberFormatException | ArithmeticException e) {
+            throw error(
+                    RiffleError.NUMBER_OUT_OF_RANGE,
+                    "decimal is outside the supported exponent range",
+                    lineIndex,
+                    column);
         }
     }
 
@@ -607,7 +622,7 @@ final class RiffleParser {
         }
         int value = 0;
         for (int k = 0; k < 4; k++) {
-            int digit = Character.digit(line.charAt(from + k), 16);
+            int digit = hexDigit(line.charAt(from + k));
             if (digit < 0) {
                 throw error(RiffleError.INVALID_ESCAPE, "expected four hexadecimal digits", lineIndex, reportAt);
             }
@@ -616,13 +631,30 @@ final class RiffleParser {
         return value;
     }
 
+    /**
+     * Returns the value of an ASCII hexadecimal digit, or {@code -1}. Only ASCII digits are legal:
+     * {@link Character#digit(char, int)} would also accept non-ASCII numerals such as U+0660.
+     */
+    private static int hexDigit(char c) {
+        if (c >= '0' && c <= '9') {
+            return c - '0';
+        }
+        if (c >= 'a' && c <= 'f') {
+            return c - 'a' + 10;
+        }
+        if (c >= 'A' && c <= 'F') {
+            return c - 'A' + 10;
+        }
+        return -1;
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private void checkDepth(int depth, RiffleLocation location) {
-        if (depth > MAX_DEPTH) {
+        if (depth > Limits.MAX_DEPTH) {
             throw new RiffleParseException(
                     RiffleError.RESOURCE_LIMIT_EXCEEDED,
-                    "maximum nesting depth of " + MAX_DEPTH + " exceeded",
+                    "maximum nesting depth of " + Limits.MAX_DEPTH + " exceeded",
                     location);
         }
     }

@@ -53,6 +53,7 @@ does not emit them.
 
 ### Lines and whitespace
 - Files are UTF-8. A byte-order mark at the start is ignored; a BOM anywhere else is an error.
+  The writer escapes U+FEFF inside values and keys, so such a value still round-trips.
 - Line endings are LF or CRLF. A lone carriage return is an error.
 - Spaces and tabs separate tokens and indent lines. Indentation is never significant.
 - Blank lines and comment lines are ignored, including inside collections.
@@ -210,7 +211,14 @@ Typed arrays are authoring sugar: the canonical writer emits untyped arrays with
 | a lone CR | LF or CRLF |
 
 ### Limits
-Nesting deeper than 128 collections is a resource-limit error.
+- Nesting deeper than 128 collections is a resource-limit error. The writer applies the same
+  bound: a value tree that deep has no valid document, so `Riffle.write` throws
+  `IllegalArgumentException` instead of producing text the parser would reject.
+- Parsing and writing keep time and memory proportional to the document; there is no
+  document-size limit. Bound untrusted input yourself, with a size check before `parse(Path)` or
+  a bounded `Reader`.
+- `@decimal` values use the exponent range of `BigDecimal`, about ±2^31. A literal whose value or
+  normalized form falls outside that range is a `NUMBER_OUT_OF_RANGE` parse error.
 
 ## Java API
 
@@ -292,6 +300,8 @@ publishing. Main sources have no runtime dependencies. Tests use JUnit 6 and Ass
 - Human-authored application configuration only; not a data interchange or protocol format.
 - No implicit typing, no variable expansion, include, merge, substitution or computation.
 - Comments and blank lines are not preserved by the canonical writer.
+- `Riffle.write(Path, …)` truncates the file and then writes it, so an interrupted write can
+  leave a partial document; write a temporary file and move it if that matters.
 - Version 0.1.0 is unreleased; the language and API may still change.
 
 ## License

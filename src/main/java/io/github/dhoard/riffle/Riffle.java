@@ -17,6 +17,12 @@ import java.util.Objects;
  *
  * <p>The document root is always an implicit map. Values declare their own kinds with
  * {@code @type} markers, and a bare value is always a string.</p>
+ *
+ * <p>Parsing reads the whole document into memory, and the only structural limit is nesting
+ * depth ({@value io.github.dhoard.riffle.Limits#MAX_DEPTH} collections); time and memory stay
+ * proportional to the input. Applications that read untrusted documents should bound their size
+ * themselves, for example with a size check before {@link #parse(Path)} or a bounded
+ * {@link Reader}.</p>
  */
 public final class Riffle {
     private Riffle() {}
@@ -66,7 +72,9 @@ public final class Riffle {
      *
      * @param container the root map
      * @return the document
-     * @throws IllegalArgumentException if {@code container} is an array, which cannot be a root
+     * @throws IllegalArgumentException if {@code container} is an array, which cannot be a root,
+     *     or if the value nests deeper than {@value io.github.dhoard.riffle.Limits#MAX_DEPTH}
+     *     collections, which no valid document can express
      */
     public static String write(RiffleContainer container) {
         Objects.requireNonNull(container, "container");
@@ -79,10 +87,14 @@ public final class Riffle {
     /**
      * Writes the canonical document as UTF-8, creating or replacing {@code file}.
      *
+     * <p>The file is truncated and then written directly, so an interrupted write can leave a
+     * partial document behind. Callers that need the previous contents preserved should write a
+     * temporary file and move it into place.</p>
+     *
      * @param file the file
      * @param container the root map
      * @throws IOException if writing fails
-     * @throws IllegalArgumentException if {@code container} is an array
+     * @throws IllegalArgumentException if {@code container} is an array or nests too deeply
      */
     public static void write(Path file, RiffleContainer container) throws IOException {
         Objects.requireNonNull(file, "file");

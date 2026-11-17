@@ -2,7 +2,7 @@ package io.github.dhoard.riffle;
 
 import java.util.Optional;
 
-/** An immutable long value, written {@code long : 9007199254740993}. */
+/** An immutable long value, written {@code @long 9007199254740993}. */
 public final class RiffleLong implements RiffleValue {
     private final long value;
     private final String path;

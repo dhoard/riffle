@@ -27,16 +27,27 @@ public final class RiffleDecimal implements RiffleValue {
      * @param value the value
      * @return the value
      * @throws NullPointerException if the value is null
+     * @throws IllegalArgumentException if {@code value} cannot be normalized within
+     *     {@link BigDecimal}'s exponent range, as when stripping trailing zeros would move the
+     *     scale past {@link Integer#MIN_VALUE}
      */
     public static RiffleDecimal of(BigDecimal value) {
         Objects.requireNonNull(value, "value");
-        return new RiffleDecimal(normalize(value), null, null);
+        try {
+            return new RiffleDecimal(normalize(value), null, null);
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("decimal value is outside the supported exponent range", e);
+        }
     }
 
+    /**
+     * Returns {@code value} without trailing zeros, so that equal numbers are equal values.
+     *
+     * @throws ArithmeticException if the normalized scale is outside {@code int} range
+     */
     static BigDecimal normalize(BigDecimal value) {
-        BigDecimal stripped = value.stripTrailingZeros();
         // stripTrailingZeros can produce a negative scale (1E+3); keep the numeric value.
-        return stripped;
+        return value.stripTrailingZeros();
     }
 
     /**
