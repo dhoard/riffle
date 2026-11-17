@@ -1,0 +1,11 @@
+intMin = @int -2147483648
+intMax = @int 2147483647
+longMin = @long -9223372036854775808
+longMax = @long 9223372036854775807
+decimal = @decimal -0.00100
+decimalWhole = @decimal 1000
+boolean = @boolean false
+nullValue = @null
+mapValue = {}
+arrayValue = []
+stringValue = @string true

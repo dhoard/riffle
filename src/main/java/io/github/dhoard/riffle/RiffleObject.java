@@ -1,5 +1,6 @@
 package io.github.dhoard.riffle;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -65,6 +66,84 @@ public final class RiffleObject implements RiffleContainer {
     public Optional<RiffleValue> find(String key) {
         Objects.requireNonNull(key, "key");
         return Optional.ofNullable(entries.get(key));
+    }
+
+    /**
+     * Returns the string value of a required key. No coercion is performed.
+     *
+     * @param key the key
+     * @return the string
+     * @throws RiffleAccessException if the key is missing or its value is not a string
+     */
+    public String getString(String key) {
+        return get(key).asString();
+    }
+
+    /**
+     * Returns the {@code int} value of a required key. A {@code long} or {@code decimal} is not
+     * accepted.
+     *
+     * @param key the key
+     * @return the int
+     * @throws RiffleAccessException if the key is missing or its value is not an int
+     */
+    public int getInt(String key) {
+        return get(key).asInt();
+    }
+
+    /**
+     * Returns the {@code long} value of a required key. An {@code int} is not widened.
+     *
+     * @param key the key
+     * @return the long
+     * @throws RiffleAccessException if the key is missing or its value is not a long
+     */
+    public long getLong(String key) {
+        return get(key).asLong();
+    }
+
+    /**
+     * Returns the decimal value of a required key. Numeric kinds are not converted.
+     *
+     * @param key the key
+     * @return the decimal
+     * @throws RiffleAccessException if the key is missing or its value is not a decimal
+     */
+    public BigDecimal getDecimal(String key) {
+        return get(key).asDecimal();
+    }
+
+    /**
+     * Returns the boolean value of a required key.
+     *
+     * @param key the key
+     * @return the boolean
+     * @throws RiffleAccessException if the key is missing or its value is not a boolean
+     */
+    public boolean getBoolean(String key) {
+        return get(key).asBoolean();
+    }
+
+    /**
+     * Returns the map value of a required key.
+     *
+     * @param key the key
+     * @return the map
+     * @throws RiffleAccessException if the key is missing or its value is not a map
+     */
+    public RiffleObject getObject(String key) {
+        return get(key).asObject();
+    }
+
+    /**
+     * Returns the array value of a required key.
+     *
+     * @param key the key
+     * @return the array
+     * @throws RiffleAccessException if the key is missing or its value is not an array
+     */
+    public RiffleArray getArray(String key) {
+        return get(key).asArray();
     }
 
     /**

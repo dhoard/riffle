@@ -1,0 +1,11 @@
+# full line
+url = https://example.com/a#frag # trailing
+pattern = path//segment
+value = hello # comment
+count = @int 42 // trailing
+list = [ # opener
+    first
+    # inside
+    second # element
+] # closer
+empty = {} # empty

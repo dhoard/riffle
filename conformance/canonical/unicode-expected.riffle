@@ -1,0 +1,5 @@
+emoji = 💡
+escaped = 💡 é
+bom = "\uFEFFinside"
+noncharacter = ￿
+keyWithUnicode = café

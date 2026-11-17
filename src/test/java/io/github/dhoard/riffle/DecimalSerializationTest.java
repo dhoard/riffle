@@ -50,6 +50,25 @@ class DecimalSerializationTest {
     void extremeExponentsAreWrittenInExponentNotation() {
         assertThat(write(new BigDecimal("1e2147483647"))).isEqualTo("d = @decimal 1E+2147483647\n");
         assertThat(write(new BigDecimal("1e-2147483646"))).isEqualTo("d = @decimal 1E-2147483646\n");
+        assertThat(write(new BigDecimal("10e2147483647"))).isEqualTo("d = @decimal 1E+2147483648\n");
+    }
+
+    @Test
+    void thePlainThresholdCountsEveryCharacterOfTheDecimalToken() {
+        String digits255 = "1".repeat(255);
+        String digits256 = "1".repeat(256);
+        String digits257 = "1".repeat(257);
+
+        assertThat(write(new BigDecimal(digits255))).isEqualTo("d = @decimal " + digits255 + "\n");
+        assertThat(write(new BigDecimal(digits256))).isEqualTo("d = @decimal " + digits256 + "\n");
+        assertThat(write(new BigDecimal(digits257))).isEqualTo("d = @decimal 1." + "1".repeat(256) + "E+256\n");
+        assertThat(write(new BigDecimal("-" + digits256))).isEqualTo("d = @decimal -1." + "1".repeat(255) + "E+255\n");
+    }
+
+    @Test
+    void smallValuesUseTheSamePlainThreshold() {
+        assertThat(write(new BigDecimal("1e-254"))).isEqualTo("d = @decimal 0." + "0".repeat(253) + "1\n");
+        assertThat(write(new BigDecimal("1e-255"))).isEqualTo("d = @decimal 1E-255\n");
     }
 
     static Stream<Arguments> extremeDecimals() {
@@ -74,6 +93,10 @@ class DecimalSerializationTest {
         RiffleObject parsed = Riffle.parse("d = @decimal 1e2147483647\n");
         assertThat(Riffle.write(parsed)).isEqualTo("d = @decimal 1E+2147483647\n");
         assertThat(Riffle.parse(Riffle.write(parsed))).isEqualTo(parsed);
+
+        RiffleObject normalizedFromTrailingZeros = Riffle.parse("d = @decimal 10e2147483647\n");
+        assertThat(Riffle.write(normalizedFromTrailingZeros)).isEqualTo("d = @decimal 1E+2147483648\n");
+        assertThat(Riffle.parse(Riffle.write(normalizedFromTrailingZeros))).isEqualTo(normalizedFromTrailingZeros);
     }
 
     @Test

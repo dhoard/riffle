@@ -1,8 +1,8 @@
 # Riffle
 
-**Riffle 0.1.0** is a small, deterministic, end-of-line-terminated configuration language and library for Java 17 and newer. It is a configuration format, not a programming language or a data interchange protocol.
+**Riffle 0.1.0** is a small, deterministic, end-of-line-terminated configuration language. Java 17 is the reference implementation in this repository, but the language is defined independently of Java.
 
-[`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) is the normative specification; this file is the guide.
+[`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) is the normative specification for every implementation; this file is the Java binding guide. Java type names in the spec appear only in non-normative appendices.
 
 - Every entry is `key = value` and ends at the end of its line.
 - Nonempty collections open on their own line and close on their own line; an empty collection may be written inline as `{}` or `[]`. Indentation has no syntactic significance.
@@ -114,9 +114,11 @@ String is the default. Every other scalar carries a marker.
 | map | `{}` or `{ … }` | `RiffleObject` |
 | array | `[]` or `[ … ]` | `RiffleArray` |
 
-- `@int` must fit 32 bits and `@long` 64 bits; `@decimal` is arbitrary precision, base 10.
+The Java column is informative. The portable definitions and ranges are in [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md).
+
+- `@int` is a signed 32-bit kind and `@long` is a signed 64-bit kind. They stay distinct even where a host language has one integer type.
 - Integers are base 10 with an optional `-`; `+`, underscores, hex, leading zeros and decimal points are rejected.
-- Decimals use `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?`. The writer emits the normalized value, so `@decimal 1.0` is written `@decimal 1`.
+- Decimals use `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?`. The writer emits the normalized value, so `@decimal 1.0` is written `@decimal 1`. Canonical rendering uses the fixed algorithm in spec §11.3.
 - `@null` takes no payload. `@float` and any other unknown type is an error.
 
 ### Bare strings
@@ -217,8 +219,8 @@ Typed arrays are authoring sugar: the canonical writer emits untyped arrays with
 - Parsing and writing keep time and memory proportional to the document; there is no
   document-size limit. Bound untrusted input yourself, with a size check before `parse(Path)` or
   a bounded `Reader`.
-- `@decimal` values use the exponent range of `BigDecimal`, about ±2^31. A literal whose value or
-  normalized form falls outside that range is a `NUMBER_OUT_OF_RANGE` parse error.
+- A decimal's normalized base-10 exponent must be in `[-2147483647, 2147483648]`. A literal whose normalized form falls outside that range is a `NUMBER_OUT_OF_RANGE` parse error.
+- Canonical decimal output chooses plain notation when the decimal token is at most 256 characters and scientific notation otherwise. Very large coefficients with zero scale now use scientific form; their old plain spelling still parses but is no longer canonical.
 
 ## Java API
 
@@ -227,20 +229,21 @@ import io.github.dhoard.riffle.*;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 RiffleObject profile = Riffle.parse(Path.of("profile.riffle"));
 
-String provider = profile.get("provider").asString();
-RiffleObject capabilities = profile.get("capabilities").asObject();
-int contextWindow = capabilities.get("contextWindow").asInt();
-boolean tools = capabilities.get("tools").asBoolean();
-BigDecimal temperature = profile.get("model").asObject().get("temperature").asDecimal();
-List<String> reasoning = capabilities.get("reasoning").asArray().values().stream()
+String provider = profile.getString("provider");
+RiffleObject capabilities = profile.getObject("capabilities");
+int contextWindow = capabilities.getInt("contextWindow");
+boolean tools = capabilities.getBoolean("tools");
+BigDecimal temperature = profile.getObject("model").getDecimal("temperature");
+List<String> reasoning = capabilities.getArray("reasoning").values().stream()
         .map(RiffleValue::asString)
         .toList();
 
 int retries = profile.find("retries").map(RiffleValue::asInt).orElse(3);
-boolean pluginIsNull = profile.get("plugin").isNull();
+boolean pluginIsNull = profile.find("plugin").map(RiffleValue::isNull).orElse(false);
 
 String canonical = Riffle.write(profile);
 ```
@@ -253,13 +256,50 @@ String canonical = Riffle.write(profile);
 ### Parsing and writing
 - `Riffle.parse` accepts a `String`, a `Reader` (which it does not close), or a UTF-8 `Path`, and returns the root map.
 - `Riffle.write` returns the canonical document; parsing it yields an equal value. An array cannot be a root, so writing one is an `IllegalArgumentException`.
+- Canonical output is UTF-8 without a BOM, uses LF and four-space indentation, and drops comments, blank lines, and typed-array annotations. It is byte-exact; see the [conformance suite](conformance/README.md).
 
 ### Access
 - `get(key)` for a required key, `find(key)` for an optional one, `entries()` for the map.
 - `get(index)`, `size()` and `values()` for arrays.
+- `RiffleObject` and `RiffleArray` also provide strict typed getters: `getString`, `getInt`, `getLong`, `getDecimal`, `getBoolean`, `getObject`, and `getArray`. They are shorthand for `get(key).asX()` or `get(index).asX()` and have the same errors, paths, and source locations.
+
+```java
+RiffleArray ports = root.getArray("ports");
+int firstPort = ports.getInt(0);          // no widening or narrowing
+String name = root.getString("name");     // no parsing of strings as numbers
+RiffleObject nested = root.getObject("nested");
+```
+
+A missing key throws `RiffleAccessException`; `find(key)` is the optional-key API. A present `@null` is returned by `get(key)` as `RiffleNull`, never Java `null`, and strict typed getters reject it with a wrong-kind error. `find("x")` being empty and `get("x").isNull()` being true are different states.
+
+### Opt-in native Java conversion
+`RiffleJavaValues` is an explicit bridge to ordinary Java collections and scalars. It does not change the strict `RiffleValue` accessors.
+
+```java
+Map<String, Object> nativeProfile = RiffleJavaValues.toJava(profile);
+String nativeProvider = (String) nativeProfile.get("provider");
+boolean pluginPresent = nativeProfile.containsKey("plugin");
+boolean pluginIsJavaNull = pluginPresent && nativeProfile.get("plugin") == null;
+List<?> nativeReasoning = (List<?>) RiffleJavaValues.toJava(capabilities.getArray("reasoning"));
+
+RiffleObject restored = RiffleJavaValues.fromJava(nativeProfile);
+```
+
+| Riffle | Java |
+| --- | --- |
+| string | `String` |
+| int | `Integer` |
+| long | `Long` |
+| decimal | `BigDecimal` |
+| boolean | `Boolean` |
+| null | Java `null` |
+| map | unmodifiable, insertion-ordered `Map<String, Object>` |
+| array | unmodifiable `List<Object>` |
+
+Results are deep defensive copies. Unlike `Map.copyOf` and `List.copyOf`, they accept null values, so present-null remains distinguishable from a missing key. `fromJava` accepts only the types above, requires `String` map keys, rejects cycles and unsupported numeric subtypes, and enforces the same nesting bound. A round trip preserves the eight kinds and order, but source locations and paths are lost and cannot be recovered.
 
 ### Conversions
-Accessors are strict: each accepts exactly one kind, and no coercion happens.
+Value-level accessors are strict: each accepts exactly one kind, and no coercion happens.
 
 | Conversion | Accepts |
 | --- | --- |
@@ -284,6 +324,29 @@ Each has a predicate that never throws and is true exactly when the conversion s
 ### Application-specific types
 Conversions for durations, URIs, colors or enums belong in the application as functions over `asString()`. Throw `new RiffleAccessException(value, reason)` to report them in the same form as Riffle's own errors.
 
+## Conformance
+
+[`conformance/`](conformance/README.md) contains language-neutral fixtures, a JSON manifest with typed expectations and expected canonical bytes, and a Java runner that discovers cases at runtime. It is the contract for future non-Java implementations; it does not imply that Go, Rust, or Python implementations already exist.
+
+```shell
+./mvnw test -Dtest=ConformanceTest
+```
+
+## Portability mappings (informative)
+
+These mappings are illustrative only. The language definition is in [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md); host-language types are not normative, and a host with one integer type must still preserve the distinct `int` and `long` Riffle kinds.
+
+| Riffle kind | Java (reference) | Go (illustrative) | Rust (illustrative) | Python (illustrative) |
+| --- | --- | --- | --- | --- |
+| string | `String` | `string` | `String` | `str` |
+| int | `int` | `int32` | `i32` | `int` with range check |
+| long | `long` | `int64` | `i64` | `int` with range check |
+| decimal | `BigDecimal` | decimal package | decimal crate | `decimal.Decimal` |
+| boolean | `boolean` | `bool` | `bool` | `bool` |
+| null | `RiffleNull` | typed nil sentinel | `Option` sentinel | `None` in a typed wrapper |
+| map | ordered `Map` | ordered pair slice | `IndexMap` / vec | insertion-ordered `dict` |
+| array | ordered `List` | `[]T` | `Vec<T>` | `list` |
+
 ## Build
 
 Requires JDK 17+ and Maven 3.9+.
@@ -299,7 +362,8 @@ publishing. Main sources have no runtime dependencies. Tests use JUnit 6 and Ass
 ## Scope and limitations
 - Human-authored application configuration only; not a data interchange or protocol format.
 - No implicit typing, no variable expansion, include, merge, substitution or computation.
-- Comments and blank lines are not preserved by the canonical writer.
+- Comments, blank lines, original quoting, and typed-array annotations are not preserved by the canonical writer. Typed arrays are authoring sugar: their elements are written with explicit `@type` markers.
+- Native conversions drop source metadata and do not provide POJO/record binding, reflection mapping, schemas, or application object construction.
 - `Riffle.write(Path, …)` truncates the file and then writes it, so an interrupted write can
   leave a partial document; write a temporary file and move it if that matters.
 - Version 0.1.0 is unreleased; the language and API may still change.

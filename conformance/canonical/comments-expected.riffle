@@ -1,0 +1,9 @@
+url = https://example.com/a#frag
+pattern = path//segment
+value = hello
+count = @int 42
+list = [
+    first
+    second
+]
+empty = {}

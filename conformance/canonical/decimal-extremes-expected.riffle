@@ -1,0 +1,3 @@
+max = @decimal 1E+2147483647
+min = @decimal 1E-2147483646
+fromTrailingZeros = @decimal 1E+2147483648

@@ -1,5 +1,6 @@
 package io.github.dhoard.riffle;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -43,6 +44,83 @@ public final class RiffleArray implements RiffleContainer {
                     location);
         }
         return values.get(index);
+    }
+
+    /**
+     * Returns the string at {@code index}. No coercion is performed.
+     *
+     * @param index the zero-based index
+     * @return the string
+     * @throws RiffleAccessException if the index is out of range or the element is not a string
+     */
+    public String getString(int index) {
+        return get(index).asString();
+    }
+
+    /**
+     * Returns the {@code int} at {@code index}. A {@code long} or {@code decimal} is not accepted.
+     *
+     * @param index the zero-based index
+     * @return the int
+     * @throws RiffleAccessException if the index is out of range or the element is not an int
+     */
+    public int getInt(int index) {
+        return get(index).asInt();
+    }
+
+    /**
+     * Returns the {@code long} at {@code index}. An {@code int} is not widened.
+     *
+     * @param index the zero-based index
+     * @return the long
+     * @throws RiffleAccessException if the index is out of range or the element is not a long
+     */
+    public long getLong(int index) {
+        return get(index).asLong();
+    }
+
+    /**
+     * Returns the decimal at {@code index}. Numeric kinds are not converted.
+     *
+     * @param index the zero-based index
+     * @return the decimal
+     * @throws RiffleAccessException if the index is out of range or the element is not a decimal
+     */
+    public BigDecimal getDecimal(int index) {
+        return get(index).asDecimal();
+    }
+
+    /**
+     * Returns the boolean at {@code index}.
+     *
+     * @param index the zero-based index
+     * @return the boolean
+     * @throws RiffleAccessException if the index is out of range or the element is not a boolean
+     */
+    public boolean getBoolean(int index) {
+        return get(index).asBoolean();
+    }
+
+    /**
+     * Returns the map at {@code index}.
+     *
+     * @param index the zero-based index
+     * @return the map
+     * @throws RiffleAccessException if the index is out of range or the element is not a map
+     */
+    public RiffleObject getObject(int index) {
+        return get(index).asObject();
+    }
+
+    /**
+     * Returns the array at {@code index}.
+     *
+     * @param index the zero-based index
+     * @return the array
+     * @throws RiffleAccessException if the index is out of range or the element is not an array
+     */
+    public RiffleArray getArray(int index) {
+        return get(index).asArray();
     }
 
     /**

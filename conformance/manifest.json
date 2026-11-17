@@ -1,0 +1,584 @@
+{
+  "schemaVersion": 1,
+  "description": "Language-neutral Riffle 0.1.0 conformance cases. See conformance/README.md.",
+  "defaultEncoding": "UTF-8",
+  "defaultLineEndings": "LF",
+  "cases": [
+    {
+      "id": "valid.strings",
+      "expectation": "valid",
+      "input": "valid/strings.riffle",
+      "expectedCanonical": "canonical/strings-expected.riffle",
+      "semantics": [
+        {
+          "path": "empty",
+          "kind": "string",
+          "value": ""
+        },
+        {
+          "path": "stringTrue",
+          "kind": "string",
+          "value": "true"
+        },
+        {
+          "path": "stringNull",
+          "kind": "string",
+          "value": "null"
+        },
+        {
+          "path": "bareWithHash",
+          "kind": "string",
+          "value": "https://example.org/a#fragment"
+        },
+        {
+          "path": "bareWithSlashes",
+          "kind": "string",
+          "value": "path//segment"
+        },
+        {
+          "path": "display name",
+          "kind": "string",
+          "value": "Jane Doe"
+        },
+        {
+          "path": "escaped",
+          "kind": "string",
+          "value": "line one\nline two ☺"
+        },
+        {
+          "path": "literalAt",
+          "kind": "string",
+          "value": "@int 123"
+        },
+        {
+          "path": "equals",
+          "kind": "string",
+          "value": "a=b"
+        },
+        {
+          "path": "absent",
+          "kind": "missing"
+        }
+      ]
+    },
+    {
+      "id": "valid.all-kinds",
+      "expectation": "valid",
+      "input": "valid/types.riffle",
+      "expectedCanonical": "canonical/types-expected.riffle",
+      "semantics": [
+        {
+          "path": "intMin",
+          "kind": "int",
+          "value": "-2147483648"
+        },
+        {
+          "path": "intMax",
+          "kind": "int",
+          "value": "2147483647"
+        },
+        {
+          "path": "longMin",
+          "kind": "long",
+          "value": "-9223372036854775808"
+        },
+        {
+          "path": "longMax",
+          "kind": "long",
+          "value": "9223372036854775807"
+        },
+        {
+          "path": "decimal",
+          "kind": "decimal",
+          "value": "-0.001"
+        },
+        {
+          "path": "decimalWhole",
+          "kind": "decimal",
+          "value": "1000"
+        },
+        {
+          "path": "boolean",
+          "kind": "boolean",
+          "value": "false"
+        },
+        {
+          "path": "nullValue",
+          "kind": "null"
+        },
+        {
+          "path": "stringValue",
+          "kind": "string",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "id": "valid.arrays",
+      "expectation": "valid",
+      "input": "valid/arrays.riffle",
+      "expectedCanonical": "canonical/arrays-expected.riffle",
+      "semantics": [
+        {
+          "path": "mixed[0]",
+          "kind": "string",
+          "value": "text"
+        },
+        {
+          "path": "mixed[1]",
+          "kind": "int",
+          "value": "1"
+        },
+        {
+          "path": "mixed[2]",
+          "kind": "long",
+          "value": "2"
+        },
+        {
+          "path": "mixed[3]",
+          "kind": "decimal",
+          "value": "0.5"
+        },
+        {
+          "path": "mixed[4]",
+          "kind": "boolean",
+          "value": "true"
+        },
+        {
+          "path": "mixed[5]",
+          "kind": "null"
+        },
+        {
+          "path": "mixed[6].key",
+          "kind": "string",
+          "value": "value"
+        },
+        {
+          "path": "mixed[7][0]",
+          "kind": "string",
+          "value": "nested"
+        },
+        {
+          "path": "emptyNested[0]",
+          "kind": "array"
+        }
+      ]
+    },
+    {
+      "id": "valid.typed-arrays",
+      "expectation": "valid",
+      "input": "canonical/typed-array-input.riffle",
+      "expectedCanonical": "canonical/typed-array-expected.riffle",
+      "semantics": [
+        {
+          "path": "ints[0]",
+          "kind": "int",
+          "value": "-2147483648"
+        },
+        {
+          "path": "longs[0]",
+          "kind": "long",
+          "value": "9000000000"
+        },
+        {
+          "path": "decimals[0]",
+          "kind": "decimal",
+          "value": "1"
+        },
+        {
+          "path": "flags[1]",
+          "kind": "boolean",
+          "value": "false"
+        },
+        {
+          "path": "text[0]",
+          "kind": "string",
+          "value": "low"
+        },
+        {
+          "path": "nulls[0]",
+          "kind": "null"
+        },
+        {
+          "path": "maps[0].host",
+          "kind": "string",
+          "value": "a.example"
+        },
+        {
+          "path": "arrays[0][0]",
+          "kind": "int",
+          "value": "1"
+        },
+        {
+          "path": "arrays[1][1]",
+          "kind": "int",
+          "value": "3"
+        },
+        {
+          "path": "empty",
+          "kind": "array"
+        }
+      ]
+    },
+    {
+      "id": "valid.nested",
+      "expectation": "valid",
+      "input": "valid/nested.riffle",
+      "expectedCanonical": "canonical/nested-expected.riffle",
+      "semantics": [
+        {
+          "path": "server.endpoints[0].host",
+          "kind": "string",
+          "value": "a.example"
+        },
+        {
+          "path": "server.endpoints[0].port",
+          "kind": "int",
+          "value": "8080"
+        },
+        {
+          "path": "server.endpoints[1].port",
+          "kind": "long",
+          "value": "9000"
+        },
+        {
+          "path": "server.options.retries",
+          "kind": "int",
+          "value": "3"
+        },
+        {
+          "path": "server.options.labels[1]",
+          "kind": "null"
+        }
+      ]
+    },
+    {
+      "id": "valid.comments",
+      "expectation": "valid",
+      "input": "valid/comments.riffle",
+      "expectedCanonical": "canonical/comments-expected.riffle",
+      "semantics": [
+        {
+          "path": "url",
+          "kind": "string",
+          "value": "https://example.com/a#frag"
+        },
+        {
+          "path": "pattern",
+          "kind": "string",
+          "value": "path//segment"
+        },
+        {
+          "path": "value",
+          "kind": "string",
+          "value": "hello"
+        },
+        {
+          "path": "count",
+          "kind": "int",
+          "value": "42"
+        },
+        {
+          "path": "list[1]",
+          "kind": "string",
+          "value": "second"
+        },
+        {
+          "path": "empty",
+          "kind": "map"
+        }
+      ]
+    },
+    {
+      "id": "valid.unicode",
+      "expectation": "valid",
+      "input": "valid/unicode.riffle",
+      "expectedCanonical": "canonical/unicode-expected.riffle",
+      "semantics": [
+        {
+          "path": "emoji",
+          "kind": "string",
+          "value": "💡"
+        },
+        {
+          "path": "escaped",
+          "kind": "string",
+          "value": "💡 é"
+        },
+        {
+          "path": "bom",
+          "kind": "string",
+          "value": "﻿inside"
+        },
+        {
+          "path": "noncharacter",
+          "kind": "string",
+          "value": "￿"
+        },
+        {
+          "path": "keyWithUnicode",
+          "kind": "string",
+          "value": "café"
+        }
+      ]
+    },
+    {
+      "id": "valid.bom-at-start",
+      "expectation": "valid",
+      "input": "valid/bom.riffle",
+      "encoding": "UTF-8 with BOM",
+      "expectedCanonical": "canonical/bom-expected.riffle",
+      "semantics": [
+        {
+          "path": "first",
+          "kind": "string",
+          "value": "value"
+        }
+      ]
+    },
+    {
+      "id": "valid.crlf",
+      "expectation": "valid",
+      "input": "valid/line-endings-crlf.riffle",
+      "expectedCanonical": "canonical/crlf-expected.riffle",
+      "semantics": [
+        {
+          "path": "first",
+          "kind": "string",
+          "value": "value"
+        },
+        {
+          "path": "second",
+          "kind": "int",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "id": "valid.decimal-normalization",
+      "expectation": "valid",
+      "input": "canonical/decimal-input.riffle",
+      "expectedCanonical": "canonical/decimal-expected.riffle",
+      "semantics": [
+        {
+          "path": "zero",
+          "kind": "decimal",
+          "value": "0"
+        },
+        {
+          "path": "zeroScale",
+          "kind": "decimal",
+          "value": "0"
+        },
+        {
+          "path": "one",
+          "kind": "decimal",
+          "value": "1"
+        },
+        {
+          "path": "thousand",
+          "kind": "decimal",
+          "value": "1000"
+        },
+        {
+          "path": "small",
+          "kind": "decimal",
+          "value": "0.001"
+        },
+        {
+          "path": "negative",
+          "kind": "decimal",
+          "value": "-0.001"
+        },
+        {
+          "path": "fraction",
+          "kind": "decimal",
+          "value": "123.45"
+        },
+        {
+          "path": "largeCoefficient",
+          "kind": "decimal",
+          "value": "123456789012345678901234567890.5"
+        }
+      ]
+    },
+    {
+      "id": "valid.decimal-extreme-exponents",
+      "expectation": "valid",
+      "input": "valid/decimal-extremes.riffle",
+      "expectedCanonical": "canonical/decimal-extremes-expected.riffle",
+      "semantics": [
+        {
+          "path": "max",
+          "kind": "decimal",
+          "value": "1E+2147483647"
+        },
+        {
+          "path": "min",
+          "kind": "decimal",
+          "value": "1E-2147483646"
+        },
+        {
+          "path": "fromTrailingZeros",
+          "kind": "decimal",
+          "value": "1E+2147483648"
+        }
+      ]
+    },
+    {
+      "id": "valid.decimal-plain-threshold",
+      "expectation": "valid",
+      "input": "valid/decimal-threshold.riffle",
+      "expectedCanonical": "canonical/decimal-threshold-expected.riffle",
+      "semantics": [
+        {
+          "path": "plainMax",
+          "kind": "decimal",
+          "value": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "path": "scientific",
+          "kind": "decimal",
+          "value": "1.1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111E+256"
+        },
+        {
+          "path": "negativeMax",
+          "kind": "decimal",
+          "value": "-1.111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111E+255"
+        },
+        {
+          "path": "smallPlain",
+          "kind": "decimal",
+          "value": "0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "path": "smallScientific",
+          "kind": "decimal",
+          "value": "1E-255"
+        }
+      ]
+    },
+    {
+      "id": "valid.typed-array-equivalence",
+      "expectation": "valid",
+      "input": "valid/typed-equivalent.riffle",
+      "expectedCanonical": "canonical/equivalence-expected.riffle",
+      "semantics": [
+        {
+          "path": "ports[0]",
+          "kind": "int",
+          "value": "80"
+        },
+        {
+          "path": "ports[1]",
+          "kind": "int",
+          "value": "443"
+        }
+      ]
+    },
+    {
+      "id": "valid.untyped-array-equivalence",
+      "expectation": "valid",
+      "input": "valid/untyped-equivalent.riffle",
+      "expectedCanonical": "canonical/equivalence-expected.riffle",
+      "semantics": [
+        {
+          "path": "ports[0]",
+          "kind": "int",
+          "value": "80"
+        },
+        {
+          "path": "ports[1]",
+          "kind": "int",
+          "value": "443"
+        }
+      ]
+    },
+    {
+      "id": "valid.empty-document",
+      "expectation": "valid",
+      "input": "valid/empty-document.riffle",
+      "expectedCanonical": "canonical/empty-expected.riffle",
+      "semantics": []
+    },
+    {
+      "id": "invalid.duplicate-key",
+      "expectation": "invalid",
+      "input": "invalid/duplicate-key.riffle",
+      "errorCategory": "DUPLICATE_KEY"
+    },
+    {
+      "id": "invalid.invalid-number",
+      "expectation": "invalid",
+      "input": "invalid/invalid-number.riffle",
+      "errorCategory": "NUMBER_OUT_OF_RANGE"
+    },
+    {
+      "id": "invalid.invalid-escape",
+      "expectation": "invalid",
+      "input": "invalid/invalid-escape.riffle",
+      "errorCategory": "INVALID_ESCAPE"
+    },
+    {
+      "id": "invalid.malformed-collection",
+      "expectation": "invalid",
+      "input": "invalid/malformed-collection.riffle",
+      "errorCategory": "MISMATCHED_CLOSER"
+    },
+    {
+      "id": "invalid.invalid-utf8",
+      "expectation": "invalid",
+      "input": "invalid/invalid-utf8.bin",
+      "errorCategory": "INVALID_UTF8",
+      "encoding": "invalid UTF-8"
+    },
+    {
+      "id": "invalid.too-deep",
+      "expectation": "invalid",
+      "input": "invalid/too-deep.riffle",
+      "errorCategory": "RESOURCE_LIMIT_EXCEEDED"
+    },
+    {
+      "id": "invalid.unsupported-type",
+      "expectation": "invalid",
+      "input": "invalid/unsupported-type.riffle",
+      "errorCategory": "UNKNOWN_TYPE"
+    },
+    {
+      "id": "invalid.lone-cr",
+      "expectation": "invalid",
+      "input": "invalid/lone-cr.riffle",
+      "errorCategory": "INVALID_LINE_ENDING"
+    },
+    {
+      "id": "invalid.bom-in-middle",
+      "expectation": "invalid",
+      "input": "invalid/bom-in-middle.riffle",
+      "errorCategory": "INVALID_CHARACTER"
+    },
+    {
+      "id": "invalid.trailing-tokens",
+      "expectation": "invalid",
+      "input": "invalid/trailing-tokens.riffle",
+      "errorCategory": "TRAILING_TOKENS"
+    },
+    {
+      "id": "invalid.isolated-surrogate",
+      "expectation": "invalid",
+      "input": "invalid/isolated-surrogate.riffle",
+      "errorCategory": "INVALID_ESCAPE"
+    },
+    {
+      "id": "invalid.decimal-out-of-range",
+      "expectation": "invalid",
+      "input": "invalid/decimal-out-of-range.riffle",
+      "errorCategory": "NUMBER_OUT_OF_RANGE"
+    },
+    {
+      "id": "invalid.root-array",
+      "expectation": "invalid",
+      "input": "invalid/root-array.riffle",
+      "errorCategory": "MISSING_EQUALS"
+    }
+  ]
+}

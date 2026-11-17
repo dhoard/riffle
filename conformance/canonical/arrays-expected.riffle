@@ -1,0 +1,19 @@
+empty = []
+mixed = [
+    text
+    @int 1
+    @long 2
+    @decimal 0.5
+    @boolean true
+    @null
+    {
+        key = value
+    }
+    [
+        nested
+    ]
+]
+emptyNested = [
+    []
+    {}
+]

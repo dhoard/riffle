@@ -81,25 +81,58 @@ final class RiffleWriter {
         return Syntax.isBareValue(text) ? text : Syntax.quote(text);
     }
 
+    /**
+     * Renders a normalized decimal using the portable algorithm in {@code LANGUAGE_SPEC.md}, §11.3.
+     * Values are normalized before reaching the writer, so a nonzero coefficient has no trailing
+     * zeros and every lexical scale has already become a base-10 exponent.
+     */
     private static String decimal(BigDecimal value) {
-        return plainTextLength(value) <= Limits.MAX_PLAIN_DECIMAL ? value.toPlainString() : value.toString();
+        if (value.signum() == 0) {
+            return "0";
+        }
+        String digits = value.unscaledValue().abs().toString();
+        long exponent = -(long) value.scale();
+        long adjusted = exponent + digits.length() - 1L;
+
+        StringBuilder token = new StringBuilder();
+        if (value.signum() < 0) {
+            token.append('-');
+        }
+        if (plainTextLength(value, digits.length(), exponent, adjusted) <= Limits.MAX_PLAIN_DECIMAL) {
+            if (exponent >= 0) {
+                token.append(digits).append("0".repeat((int) exponent));
+            } else if (adjusted >= 0) {
+                int split = (int) adjusted + 1;
+                token.append(digits, 0, split).append('.').append(digits, split, digits.length());
+            } else {
+                token.append("0.").append("0".repeat((int) -adjusted - 1)).append(digits);
+            }
+            return token.toString();
+        }
+
+        token.append(digits.charAt(0));
+        if (digits.length() > 1) {
+            token.append('.').append(digits, 1, digits.length());
+        }
+        token.append('E').append(adjusted >= 0 ? '+' : '-').append(Math.abs(adjusted));
+        return token.toString();
     }
 
     /**
-     * Returns the length {@code value.toPlainString()} would have, without building that string:
-     * a value such as {@code 1E+2147483647} would need billions of characters.
+     * Returns the length of the plain token without building it: a value such as
+     * {@code 1E+2147483647} would need billions of characters. The token is ASCII, so its
+     * character count is also its UTF-8 byte count.
      */
-    private static long plainTextLength(BigDecimal value) {
-        long precision = value.precision();
-        long scale = value.scale();
-        long digits;
-        if (scale <= 0) {
-            // Zero is written "0" however large its exponent: 0E+5 has no digits to pad.
-            digits = value.signum() == 0 ? 1 : precision - scale;
+    private static long plainTextLength(BigDecimal value, int digits, long exponent, long adjusted) {
+        long length;
+        if (exponent >= 0) {
+            length = digits + exponent;
+        } else if (adjusted >= 0) {
+            length = digits + 1L;
         } else {
-            digits = Math.max(precision + 1, scale + 2);
+            length = digits + 1L - adjusted;
         }
-        return value.signum() < 0 ? digits + 1 : digits;
+        return value.signum() < 0 ? length + 1 : length;
     }
 
     private static void checkDepth(int depth) {
