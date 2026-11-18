@@ -14,61 +14,26 @@ class ParserRejectionTest {
 
     static Stream<Arguments> rejected() {
         return Stream.of(
-                Arguments.of("missing payload", "k : @int\n", RiffleError.MISSING_VALUE, 1),
-                Arguments.of("leading zero", "k : @int 01\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("signed int", "k : @int +5\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("underscored int", "k : @int 1_000\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("int overflow", "k : @int 2147483648\n", RiffleError.NUMBER_OUT_OF_RANGE, 1),
-                Arguments.of("long overflow", "k : @long 9223372036854775808\n", RiffleError.NUMBER_OUT_OF_RANGE, 1),
-                Arguments.of("bad boolean", "k : @boolean yes\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("null payload", "k : @null null\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("unknown type", "k : @float 1.0\n", RiffleError.UNKNOWN_TYPE, 1),
-                Arguments.of("unknown bare type", "k : @home\n", RiffleError.UNKNOWN_TYPE, 1),
-                Arguments.of("quoted int", "k : @int \"1\"\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("trailing tokens after int", "k : @int 1 2\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("bad decimal", "k : @decimal NaN\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("decimal without leading digit", "k : @decimal .5\n", RiffleError.INVALID_TYPED_VALUE, 1),
-                Arguments.of("string without payload", "k : @string\n", RiffleError.MISSING_VALUE, 1),
-                Arguments.of("map without key marker", "k : @map\n", RiffleError.INVALID_TYPED_VALUE, 1),
+                Arguments.of("reserved first character", "k : @home\n", RiffleError.INVALID_VALUE, 1),
+                Arguments.of("scoped package name", "pkg : @scope/name\n", RiffleError.INVALID_VALUE, 1),
+                Arguments.of("former type marker", "k : @int 1\n", RiffleError.INVALID_VALUE, 1),
+                Arguments.of("former null marker", "k : @null\n", RiffleError.INVALID_VALUE, 1),
+                Arguments.of("former typed array", "k : @int [\n  1\n]\n", RiffleError.INVALID_VALUE, 1),
+                Arguments.of("former empty typed array", "k : @int []\n", RiffleError.INVALID_VALUE, 1),
+                Arguments.of("reserved array element", "k : [\n  @x\n]\n", RiffleError.INVALID_VALUE, 2),
+                Arguments.of("escaped nul in a value", "k : \"a\\u0000b\"\n", RiffleError.INVALID_ESCAPE, 1),
+                Arguments.of("escaped nul in a key", "\"a\\u0000b\" : v\n", RiffleError.INVALID_ESCAPE, 1),
+                Arguments.of("literal nul in a value", "k : a\u0000b\n", RiffleError.INVALID_CHARACTER, 1),
                 Arguments.of("inline map", "x : { a : b }\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
                 Arguments.of("inline array", "x : [ one ]\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
-                Arguments.of("inline typed array", "x : @int [ 1 ]\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
+                Arguments.of("unquoted pattern", "re : [a-z]+\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
+                Arguments.of("unquoted template", "t : {name}\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
                 Arguments.of("empty map with spaces", "x : { }\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
                 Arguments.of("empty array with spaces", "x : [ ]\n", RiffleError.UNSUPPORTED_INLINE_COLLECTION, 1),
-                Arguments.of(
-                        "empty typed array with spaces",
-                        "x : @int [ ]\n",
-                        RiffleError.UNSUPPORTED_INLINE_COLLECTION,
-                        1),
+                Arguments.of("text after an empty array", "x : []y\n", RiffleError.TRAILING_TOKENS, 1),
                 Arguments.of("trailing tokens after empty map", "x : {} y : 2\n", RiffleError.TRAILING_TOKENS, 1),
                 Arguments.of("trailing tokens after quoted string", "x : \"a\" b\n", RiffleError.TRAILING_TOKENS, 1),
-                Arguments.of("mismatched closer", "x : [\n  @int 1\n}\n", RiffleError.MISMATCHED_CLOSER, 3),
-                Arguments.of(
-                        "repeated annotation", "x : @int [\n  @int 1\n]\n", RiffleError.INVALID_ARRAY_ELEMENT_TYPE, 2),
-                Arguments.of(
-                        "wrong element type", "x : @int [\n  text\n]\n", RiffleError.INVALID_ARRAY_ELEMENT_TYPE, 2),
-                Arguments.of(
-                        "quoted numeric element",
-                        "x : @int [\n  \"1\"\n]\n",
-                        RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                        2),
-                Arguments.of(
-                        "string element with marker",
-                        "x : @string [\n  @int 1\n]\n",
-                        RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                        2),
-                Arguments.of(
-                        "map element expected", "x : @map [\n  hello\n]\n", RiffleError.INVALID_ARRAY_ELEMENT_TYPE, 2),
-                Arguments.of(
-                        "null element expected",
-                        "x : @null [\n  hello\n]\n",
-                        RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                        2),
-                Arguments.of(
-                        "array element expected",
-                        "x : @array [\n  hello\n]\n",
-                        RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                        2),
+                Arguments.of("mismatched closer", "x : [\n  1\n}\n", RiffleError.MISMATCHED_CLOSER, 3),
                 Arguments.of("duplicate key", "x : a\nx : b\n", RiffleError.DUPLICATE_KEY, 2),
                 Arguments.of("duplicate quoted key", "\"a b\" : 1\na b : 2\n", RiffleError.INVALID_KEY, 2),
                 Arguments.of("typed key", "@int 1 : a\n", RiffleError.INVALID_KEY, 1),
@@ -87,7 +52,7 @@ class ParserRejectionTest {
                 Arguments.of(
                         "equals separator after quoted key", "\"key name\" = value\n", RiffleError.MISSING_COLON, 1),
                 Arguments.of("bare value starting with closer", "x : }\n", RiffleError.INVALID_VALUE, 1),
-                Arguments.of("bare value starting with marker", "x : @\n", RiffleError.INVALID_TYPED_VALUE, 1),
+                Arguments.of("bare value starting with marker", "x : @\n", RiffleError.INVALID_VALUE, 1),
                 Arguments.of("control character", "x : a\u0001b\n", RiffleError.INVALID_CHARACTER, 1),
                 Arguments.of("tab in bare string", "x : a\tb\n", RiffleError.INVALID_CHARACTER, 1),
                 Arguments.of("lone carriage return", "x : a\r y : b\n", RiffleError.INVALID_LINE_ENDING, 1),
@@ -106,24 +71,29 @@ class ParserRejectionTest {
     }
 
     @Test
-    void inlineCollectionDiagnosticsNameTheCorrectShape() {
+    void inlineCollectionDiagnosticsSuggestQuotingFirst() {
         assertThatThrownBy(() -> Riffle.parse("chatgpt-oauth : { key : Test value }\n"))
                 .isInstanceOfSatisfying(RiffleParseException.class, e -> {
                     assertThat(e.category()).isEqualTo(RiffleError.UNSUPPORTED_INLINE_COLLECTION);
-                    assertThat(e.getMessage())
-                            .contains("separate lines")
+                    assertThat(e.reason())
+                            .startsWith("a value starting with '{' must be quoted")
+                            .contains("to write a map")
                             .contains("entries")
                             .contains("on its own line");
                     assertThat(e.location().column()).isEqualTo(19);
                 });
-        assertThatThrownBy(() -> Riffle.parse("x : [ one ]\n"))
+        assertThatThrownBy(() -> Riffle.parse("re : [a-z]+\n"))
+                .isInstanceOfSatisfying(RiffleParseException.class, e -> {
+                    assertThat(e.reason())
+                            .startsWith("a value starting with '[' must be quoted")
+                            .contains("to write an array, put '[' at the end of the line")
+                            .contains("elements");
+                    assertThat(e.getMessage()).doesNotContain("a-z");
+                });
+        assertThatThrownBy(() -> Riffle.parse("x : []y\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
-                        e -> assertThat(e.getMessage()).contains("elements"));
-        assertThatThrownBy(() -> Riffle.parse("x : @int [ 1 ]\n"))
-                .isInstanceOfSatisfying(
-                        RiffleParseException.class,
-                        e -> assertThat(e.getMessage()).contains("elements"));
+                        e -> assertThat(e.reason()).startsWith("a value starting with '[' must be quoted"));
         assertThatThrownBy(() -> Riffle.parse("x : { }\n")).isInstanceOfSatisfying(RiffleParseException.class, e -> {
             assertThat(e.getMessage()).contains("empty collection").contains("{}");
             assertThat(e.getMessage()).doesNotContain("nonempty");
@@ -137,23 +107,23 @@ class ParserRejectionTest {
     }
 
     @Test
-    void errorsCarryAColumnAndAMessage() {
-        assertThatThrownBy(() -> Riffle.parse("a : {\n    port : @int 80a\n}\n"))
+    void aReservedFirstCharacterTellsTheAuthorToQuote() {
+        assertThatThrownBy(() -> Riffle.parse("pkg : @scope/name\n"))
                 .isInstanceOfSatisfying(RiffleParseException.class, e -> {
-                    assertThat(e.location().line()).isEqualTo(2);
-                    assertThat(e.location().column()).isEqualTo(17);
-                    assertThat(e.getMessage()).startsWith("line 2, column 17: ");
+                    assertThat(e.category()).isEqualTo(RiffleError.INVALID_VALUE);
+                    assertThat(e.reason()).isEqualTo("a value starting with '@' must be quoted");
+                    assertThat(e.getMessage()).doesNotContain("scope");
                 });
     }
 
     @Test
-    void messagesDoNotIncludeScalarValues() {
-        assertThatThrownBy(() -> Riffle.parse("x : @int 80a\n"))
-                .isInstanceOf(RiffleParseException.class)
-                .hasMessageNotContaining("80a");
-        assertThatThrownBy(() -> Riffle.parse("x : @boolean yes\n"))
-                .isInstanceOf(RiffleParseException.class)
-                .hasMessageNotContaining("yes");
+    void errorsCarryAColumnAndAMessage() {
+        assertThatThrownBy(() -> Riffle.parse("a : {\n    port : @80\n}\n"))
+                .isInstanceOfSatisfying(RiffleParseException.class, e -> {
+                    assertThat(e.location().line()).isEqualTo(2);
+                    assertThat(e.location().column()).isEqualTo(12);
+                    assertThat(e.getMessage()).startsWith("line 2, column 12: ");
+                });
     }
 
     @Test

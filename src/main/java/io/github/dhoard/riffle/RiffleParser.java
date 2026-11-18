@@ -1,25 +1,20 @@
 package io.github.dhoard.riffle;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Line-oriented parser for Riffle 0.1.0: one entry or element per line, collections on their
- * own lines, {@code @type} markers for non-string scalars. Package-private by design.
+ * own lines, and every scalar a string. Package-private by design.
  *
- * <p>Comments occupy whole lines: a line whose first non-whitespace character is {@code #} is a
- * line comment, and a block-comment region is removed before parsing starts. A {@code #} after a
- * value is therefore part of that value, so no key, value, opener, or closer can contain a comment
- * (LANGUAGE_SPEC.md §8).</p>
+ * <p>Lines are scanned in one pass with three modes (LANGUAGE_SPEC.md §9.1). In normal mode a line
+ * is blank, a comment, an entry, an element, or a closer. In block-comment mode only comment
+ * delimiters mean anything, and in raw-block mode only the closing {@code """} does. A {@code #}
+ * after a value is part of that value, so no key, value, opener, or closer can contain a comment
+ * (§8).</p>
  */
 final class RiffleParser {
-    private static final Pattern INTEGER = Pattern.compile("-?(0|[1-9][0-9]*)");
-    private static final Pattern DECIMAL = Pattern.compile("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?");
-
     private final String source;
     private final List<String> lines = new ArrayList<>();
     private int next;
@@ -29,7 +24,6 @@ final class RiffleParser {
         String body = !text.isEmpty() && text.charAt(0) == Syntax.BYTE_ORDER_MARK ? text.substring(1) : text;
         validateCodePoints(body);
         splitLines(body);
-        stripBlockComments();
     }
 
     RiffleObject parse() {
@@ -97,46 +91,47 @@ final class RiffleParser {
     }
 
     /**
-     * Removes block-comment regions (LANGUAGE_SPEC.md §8). A line whose first non-whitespace
-     * characters are {@code /#} opens a region, and anything after them on that line is comment
-     * text. A line whose first non-whitespace characters are {@code #/} and whose remaining
-     * characters are only spaces or tabs closes one nesting level. Every other line of a region is
-     * ignored, including lines that look like entries, delimiters, or invalid Riffle.
-     *
-     * <p>Region lines are replaced by empty lines rather than removed, so that every later
-     * diagnostic still reports the source's own line.</p>
+     * Advances to the next line that holds an entry, element, or closer, and returns its index, or
+     * {@code -1} at the end of the document. Blank lines, line comments, and block comments are
+     * consumed here.
      */
-    private void stripBlockComments() {
-        int depth = 0;
-        int openerLine = -1;
-        int openerColumn = -1;
-        for (int index = 0; index < lines.size(); index++) {
+    private int nextContentLine() {
+        while (next < lines.size()) {
+            int index = next++;
             String raw = lines.get(index);
             int start = Syntax.firstNonWhitespace(raw, 0);
+            if (start >= raw.length()) {
+                continue;
+            }
             if (isBlockCommentOpener(raw, start)) {
-                if (depth == 0) {
-                    openerLine = index;
-                    openerColumn = start;
-                }
+                skipBlockComment(index, start);
+            } else if (raw.charAt(start) != '#') {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Consumes a block comment whose opener has just been read. Every line is ignored except the
+     * delimiters that track nesting (LANGUAGE_SPEC.md §8.2).
+     */
+    private void skipBlockComment(int openerLine, int openerColumn) {
+        int depth = 1;
+        while (next < lines.size()) {
+            String raw = lines.get(next++);
+            int start = Syntax.firstNonWhitespace(raw, 0);
+            if (isBlockCommentOpener(raw, start)) {
                 depth++;
-                lines.set(index, "");
-                continue;
+            } else if (isBlockCommentCloser(raw, start) && --depth == 0) {
+                return;
             }
-            if (depth == 0) {
-                continue;
-            }
-            if (isBlockCommentCloser(raw, start)) {
-                depth--;
-            }
-            lines.set(index, "");
         }
-        if (depth > 0) {
-            throw error(
-                    RiffleError.UNCLOSED_COMMENT,
-                    "unclosed block comment; a line containing only '#/' is expected",
-                    openerLine,
-                    openerColumn);
-        }
+        throw error(
+                RiffleError.UNCLOSED_COMMENT,
+                "unclosed block comment; a line containing only '#/' is expected",
+                openerLine,
+                openerColumn);
     }
 
     /** Returns whether a line opens a block comment: {@code /#} followed by anything. */
@@ -152,18 +147,9 @@ final class RiffleParser {
                 && Syntax.firstNonWhitespace(line, start + 2) >= line.length();
     }
 
-    /**
-     * Returns whether {@code line} is a comment line: its first non-whitespace character is
-     * {@code #}. A comment occupies a whole line, so a {@code #} after a value is part of that
-     * value (LANGUAGE_SPEC.md §8.1).
-     */
-    private static boolean isCommentLine(String line) {
-        int start = Syntax.firstNonWhitespace(line, 0);
-        return start < line.length() && line.charAt(start) == '#';
-    }
-
     /** Requires that an opener is the last syntactic token on its line. */
-    private void openerLast(String line, int from, int lineIndex, char open, char close, String contents) {
+    private void openerLast(
+            String line, int from, int lineIndex, char open, char close, String collection, String contents) {
         int i = Syntax.firstNonWhitespace(line, from);
         if (i >= line.length()) {
             return;
@@ -178,10 +164,24 @@ final class RiffleParser {
         }
         throw error(
                 RiffleError.UNSUPPORTED_INLINE_COLLECTION,
-                "a nonempty collection is written on separate lines: '" + open + "' ends this line, the " + contents
-                        + " follow, '" + close + "' is on its own line",
+                "a value starting with '" + open + "' must be quoted; to write " + collection + ", put '" + open
+                        + "' at the end of the line, the " + contents + " on the following lines, and '" + close
+                        + "' on its own line",
                 lineIndex,
                 i);
+    }
+
+    /** Requires that an empty collection is the whole value; other text means an unquoted value. */
+    private void afterEmptyCollection(String line, int from, int lineIndex, String empty, String kind) {
+        int i = Syntax.firstNonWhitespace(line, from);
+        if (i < line.length()) {
+            throw error(
+                    RiffleError.TRAILING_TOKENS,
+                    "a value starting with '" + empty.charAt(0) + "' must be quoted; an empty " + kind + " is written '"
+                            + empty + "' alone after the key",
+                    lineIndex,
+                    i);
+        }
     }
 
     /** Requires that only whitespace follows {@code from} on its line. */
@@ -196,13 +196,9 @@ final class RiffleParser {
 
     private RiffleObject readMap(RiffleLocation opener, String path, int depth, boolean root) {
         LinkedHashMap<String, RiffleValue> entries = new LinkedHashMap<>();
-        while (next < lines.size()) {
-            int index = next++;
+        for (int index = nextContentLine(); index >= 0; index = nextContentLine()) {
             String raw = lines.get(index);
             int start = Syntax.firstNonWhitespace(raw, 0);
-            if (start >= raw.length() || isCommentLine(raw)) {
-                continue;
-            }
             char first = raw.charAt(start);
             if (first == '}') {
                 onlyWhitespace(raw, start + 1, index);
@@ -262,13 +258,9 @@ final class RiffleParser {
 
     private RiffleArray readArray(RiffleLocation opener, String path, int depth) {
         List<RiffleValue> values = new ArrayList<>();
-        while (next < lines.size()) {
-            int index = next++;
+        for (int index = nextContentLine(); index >= 0; index = nextContentLine()) {
             String raw = lines.get(index);
             int start = Syntax.firstNonWhitespace(raw, 0);
-            if (start >= raw.length() || isCommentLine(raw)) {
-                continue;
-            }
             char first = raw.charAt(start);
             if (first == ']') {
                 onlyWhitespace(raw, start + 1, index);
@@ -282,28 +274,6 @@ final class RiffleParser {
         throw new RiffleParseException(RiffleError.UNCLOSED_COLLECTION, "unclosed array; ']' expected", opener);
     }
 
-    private RiffleArray readTypedArray(String kind, RiffleLocation opener, String path, int depth) {
-        List<RiffleValue> values = new ArrayList<>();
-        while (next < lines.size()) {
-            int index = next++;
-            String raw = lines.get(index);
-            int start = Syntax.firstNonWhitespace(raw, 0);
-            if (start >= raw.length() || isCommentLine(raw)) {
-                continue;
-            }
-            char first = raw.charAt(start);
-            if (first == ']') {
-                onlyWhitespace(raw, start + 1, index);
-                return new RiffleArray(values, path, opener);
-            }
-            if (first == '}') {
-                throw error(RiffleError.MISMATCHED_CLOSER, "expected ']' but found '}'", index, start);
-            }
-            values.add(element(kind, raw, start, index, Syntax.elementPath(path, values.size()), depth));
-        }
-        throw new RiffleParseException(RiffleError.UNCLOSED_COLLECTION, "unclosed array; ']' expected", opener);
-    }
-
     // ---------------------------------------------------------------- values
 
     private RiffleValue value(String line, int from, int lineIndex, String path, int depth) {
@@ -311,28 +281,30 @@ final class RiffleParser {
         RiffleLocation location = at(lineIndex, from);
         switch (first) {
             case '"' -> {
+                if (line.substring(from, Syntax.trimEnd(line, from)).equals(Syntax.RAW_BLOCK_DELIMITER)) {
+                    return rawBlock(lineIndex, from, path, location);
+                }
                 Quoted quoted = quotedValue(line, from, lineIndex);
                 onlyWhitespace(line, quoted.end, lineIndex);
                 return new RiffleString(quoted.text, path, location);
             }
-            case '@' -> {
-                return typed(line, from, lineIndex, path, depth);
-            }
+            case '@' ->
+                throw error(RiffleError.INVALID_VALUE, "a value starting with '@' must be quoted", lineIndex, from);
             case '{' -> {
                 if (from + 1 < line.length() && line.charAt(from + 1) == '}') {
-                    onlyWhitespace(line, from + 2, lineIndex);
+                    afterEmptyCollection(line, from + 2, lineIndex, "{}", "map");
                     return new RiffleObject(new LinkedHashMap<>(), path, location);
                 }
-                openerLast(line, from + 1, lineIndex, '{', '}', "entries");
+                openerLast(line, from + 1, lineIndex, '{', '}', "a map", "entries");
                 checkDepth(depth + 1, location);
                 return readMap(location, path, depth + 1, false);
             }
             case '[' -> {
                 if (from + 1 < line.length() && line.charAt(from + 1) == ']') {
-                    onlyWhitespace(line, from + 2, lineIndex);
+                    afterEmptyCollection(line, from + 2, lineIndex, "[]", "array");
                     return new RiffleArray(new ArrayList<>(), path, location);
                 }
-                openerLast(line, from + 1, lineIndex, '[', ']', "elements");
+                openerLast(line, from + 1, lineIndex, '[', ']', "an array", "elements");
                 checkDepth(depth + 1, location);
                 return readArray(location, path, depth + 1);
             }
@@ -348,262 +320,62 @@ final class RiffleParser {
         }
     }
 
-    private RiffleValue typed(String line, int from, int lineIndex, String path, int depth) {
-        int wordStart = from + 1;
-        int wordEnd = wordStart;
-        while (wordEnd < line.length() && !Syntax.isHorizontalWhitespace(line.charAt(wordEnd))) {
-            wordEnd++;
-        }
-        String word = line.substring(wordStart, Math.min(wordEnd, line.length()));
-        RiffleLocation location = at(lineIndex, from);
-        if (word.isEmpty()) {
-            throw error(RiffleError.INVALID_TYPED_VALUE, "expected a type name after '@'", lineIndex, from);
-        }
-        int afterWord = Syntax.firstNonWhitespace(line, wordEnd);
-        boolean bracketed = afterWord < line.length() && line.charAt(afterWord) == '[';
-        if (bracketed) {
-            if (!isElementType(word)) {
-                throw error(
-                        RiffleError.UNKNOWN_TYPE, "'@" + word + "' cannot open a typed array", lineIndex, wordStart);
-            }
-            if (afterWord + 1 < line.length() && line.charAt(afterWord + 1) == ']') {
-                onlyWhitespace(line, afterWord + 2, lineIndex);
-                return new RiffleArray(new ArrayList<>(), path, location);
-            }
-            openerLast(line, afterWord + 1, lineIndex, '[', ']', "elements");
-            checkDepth(depth + 1, location);
-            return readTypedArray(word, location, path, depth + 1);
-        }
-        switch (word) {
-            case "null" -> {
-                if (afterWord < line.length()) {
-                    throw error(RiffleError.INVALID_TYPED_VALUE, "@null takes no payload", lineIndex, afterWord);
-                }
-                return new RiffleNull(path, location);
-            }
-            case "string" -> {
-                if (afterWord >= line.length()) {
-                    throw error(
-                            RiffleError.MISSING_VALUE,
-                            "expected a payload after '@string'",
-                            lineIndex,
-                            Math.min(afterWord, Math.max(line.length() - 1, 0)));
-                }
-                if (line.charAt(afterWord) == '"') {
-                    Quoted quoted = quotedValue(line, afterWord, lineIndex);
-                    onlyWhitespace(line, quoted.end, lineIndex);
-                    return new RiffleString(quoted.text, path, location);
-                }
-                return bareString(line, afterWord, lineIndex, path, location);
-            }
-            case "int", "long", "decimal", "boolean" -> {
-                int payloadEnd = Syntax.trimEnd(line, afterWord);
-                if (afterWord >= payloadEnd) {
-                    throw error(
-                            RiffleError.MISSING_VALUE,
-                            "expected a payload after '@" + word + "'",
-                            lineIndex,
-                            afterWord);
-                }
-                return scalar(word, line.substring(afterWord, payloadEnd), lineIndex, afterWord, path, location);
-            }
-            case "map", "array" ->
-                throw error(
-                        RiffleError.INVALID_TYPED_VALUE, "'@" + word + "' is only allowed before '['", lineIndex, from);
-            default -> throw error(RiffleError.UNKNOWN_TYPE, "'@" + word + "' is not a type", lineIndex, wordStart);
-        }
-    }
-
-    private RiffleValue element(String kind, String line, int from, int lineIndex, String path, int depth) {
-        RiffleLocation location = at(lineIndex, from);
-        char first = line.charAt(from);
-        switch (kind) {
-            case "null" -> {
-                String text = line.substring(from, Syntax.trimEnd(line, from));
-                if (!text.equals("null")) {
-                    throw error(
-                            RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                            "@null array elements are written null",
-                            lineIndex,
-                            from);
-                }
-                return new RiffleNull(path, location);
-            }
-            case "string" -> {
-                if (first == '"') {
-                    Quoted quoted = quotedValue(line, from, lineIndex);
-                    onlyWhitespace(line, quoted.end, lineIndex);
-                    return new RiffleString(quoted.text, path, location);
-                }
-                if (first == '@' || first == '{' || first == '[' || first == '}' || first == ']') {
-                    throw error(
-                            RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                            "@string array elements are bare or quoted text",
-                            lineIndex,
-                            from);
-                }
-                return bareString(line, from, lineIndex, path, location);
-            }
-            case "int", "long", "decimal", "boolean" -> {
-                if (first == '@' || first == '"' || first == '{' || first == '[' || first == '}' || first == ']') {
-                    throw error(
-                            RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
-                            "@" + kind + " array elements are written without '@" + kind + "'",
-                            lineIndex,
-                            from);
-                }
-                int payloadEnd = Syntax.trimEnd(line, from);
-                try {
-                    return scalar(kind, line.substring(from, payloadEnd), lineIndex, from, path, location);
-                } catch (RiffleParseException e) {
-                    if (e.category() == RiffleError.INVALID_TYPED_VALUE) {
-                        throw new RiffleParseException(
-                                RiffleError.INVALID_ARRAY_ELEMENT_TYPE, e.reason(), e.location());
-                    }
-                    throw e;
-                }
-            }
-            case "map" -> {
-                if (from + 1 < line.length() && line.charAt(from + 1) == '}') {
-                    onlyWhitespace(line, from + 2, lineIndex);
-                    return new RiffleObject(new LinkedHashMap<>(), path, location);
-                }
-                if (first == '{') {
-                    openerLast(line, from + 1, lineIndex, '{', '}', "entries");
-                    checkDepth(depth + 1, location);
-                    return readMap(location, path, depth + 1, false);
-                }
-                throw error(RiffleError.INVALID_ARRAY_ELEMENT_TYPE, "expected a map element", lineIndex, from);
-            }
-            case "array" -> {
-                if (from + 1 < line.length() && line.charAt(from + 1) == ']') {
-                    onlyWhitespace(line, from + 2, lineIndex);
-                    return new RiffleArray(new ArrayList<>(), path, location);
-                }
-                if (first == '[') {
-                    openerLast(line, from + 1, lineIndex, '[', ']', "elements");
-                    checkDepth(depth + 1, location);
-                    return readArray(location, path, depth + 1);
-                }
-                if (first == '@') {
-                    int wordStart = from + 1;
-                    int wordEnd = wordStart;
-                    while (wordEnd < line.length() && !Syntax.isHorizontalWhitespace(line.charAt(wordEnd))) {
-                        wordEnd++;
-                    }
-                    String word = line.substring(wordStart, Math.min(wordEnd, line.length()));
-                    int afterWord = Syntax.firstNonWhitespace(line, wordEnd);
-                    if (!isElementType(word) || afterWord >= line.length() || line.charAt(afterWord) != '[') {
-                        throw error(
-                                RiffleError.INVALID_ARRAY_ELEMENT_TYPE, "expected an array element", lineIndex, from);
-                    }
-                    return typed(line, from, lineIndex, path, depth);
-                }
-                throw error(RiffleError.INVALID_ARRAY_ELEMENT_TYPE, "expected an array element", lineIndex, from);
-            }
-            default -> throw new IllegalStateException("unknown element type " + kind);
-        }
-    }
-
-    private RiffleValue scalar(
-            String word, String payload, int lineIndex, int column, String path, RiffleLocation location) {
-        if (payload.startsWith("\"")) {
-            throw error(
-                    RiffleError.INVALID_TYPED_VALUE,
-                    "'@" + word + "' does not accept a quoted payload",
-                    lineIndex,
-                    column);
-        }
-        switch (word) {
-            case "int" -> {
-                if (!INTEGER.matcher(payload).matches()) {
-                    throw error(RiffleError.INVALID_TYPED_VALUE, "expected an integer", lineIndex, column);
-                }
-                try {
-                    return new RiffleInt(Integer.parseInt(payload), path, location);
-                } catch (NumberFormatException e) {
-                    throw error(RiffleError.NUMBER_OUT_OF_RANGE, "int is out of range", lineIndex, column);
-                }
-            }
-            case "long" -> {
-                if (!INTEGER.matcher(payload).matches()) {
-                    throw error(RiffleError.INVALID_TYPED_VALUE, "expected an integer", lineIndex, column);
-                }
-                try {
-                    return new RiffleLong(Long.parseLong(payload), path, location);
-                } catch (NumberFormatException e) {
-                    throw error(RiffleError.NUMBER_OUT_OF_RANGE, "long is out of range", lineIndex, column);
-                }
-            }
-            case "decimal" -> {
-                if (!DECIMAL.matcher(payload).matches()) {
-                    throw error(RiffleError.INVALID_TYPED_VALUE, "expected a decimal number", lineIndex, column);
-                }
-                return new RiffleDecimal(decimal(payload, lineIndex, column), path, location);
-            }
-            case "boolean" -> {
-                if (payload.equals("true")) {
-                    return new RiffleBoolean(true, path, location);
-                }
-                if (payload.equals("false")) {
-                    return new RiffleBoolean(false, path, location);
-                }
-                throw error(RiffleError.INVALID_TYPED_VALUE, "expected true or false", lineIndex, column);
-            }
-            default -> throw new IllegalStateException("unknown scalar type " + word);
-        }
-    }
-
     /**
-     * Parses a decimal payload. A literal whose value or normalized scale is outside
-     * {@link BigDecimal}'s exponent range cannot be represented, so it is reported as a range
-     * error rather than as the runtime exception the JDK constructors raise.
+     * Reads a raw block whose opener has just been read (LANGUAGE_SPEC.md §5.3). The closer is found
+     * first, because its indentation decides how every content line is read.
      */
-    private BigDecimal decimal(String payload, int lineIndex, int column) {
-        try {
-            return RiffleDecimal.normalize(parseDecimal(payload));
-        } catch (NumberFormatException | ArithmeticException e) {
-            throw error(
-                    RiffleError.NUMBER_OUT_OF_RANGE,
-                    "decimal is outside the supported exponent range",
-                    lineIndex,
-                    column);
+    private RiffleString rawBlock(int openerLine, int openerColumn, String path, RiffleLocation location) {
+        int closer = next;
+        while (closer < lines.size() && !Syntax.isRawBlockDelimiter(lines.get(closer))) {
+            closer++;
         }
+        if (closer >= lines.size()) {
+            throw error(
+                    RiffleError.UNTERMINATED_STRING,
+                    "unterminated multiline string; a line containing only '"
+                            + Syntax.RAW_BLOCK_DELIMITER
+                            + "' is expected",
+                    openerLine,
+                    openerColumn);
+        }
+        String closerLine = lines.get(closer);
+        String indent = closerLine.substring(0, Syntax.firstNonWhitespace(closerLine, 0));
+        StringBuilder text = new StringBuilder();
+        for (int index = next; index < closer; index++) {
+            if (index > next) {
+                text.append('\n');
+            }
+            text.append(rawContent(lines.get(index), indent, index));
+        }
+        next = closer + 1;
+        return new RiffleString(text.toString(), path, location);
     }
 
-    /**
-     * Parses a validated decimal token. Java 17's {@code BigDecimal(String)} rejects exponent
-     * {@code 2147483648} even though the equivalent scale {@code Integer.MIN_VALUE} is legal and
-     * the canonical writer emits that exponent for {@code 10e2147483647}. On that failure, rebuild
-     * the value from its unscaled digits and scale; genuinely out-of-range scales still fail.
-     */
-    private static BigDecimal parseDecimal(String payload) {
-        try {
-            return new BigDecimal(payload);
-        } catch (NumberFormatException original) {
-            int exponentAt = payload.indexOf('e');
-            if (exponentAt < 0) {
-                exponentAt = payload.indexOf('E');
+    /** Validates one raw-block content line and removes the closer's indentation from it. */
+    private String rawContent(String line, String indent, int lineIndex) {
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c != '\t' && Syntax.isControl(c)) {
+                throw error(RiffleError.INVALID_CHARACTER, "control character in a multiline string", lineIndex, i);
             }
-            if (exponentAt < 0) {
-                throw original;
-            }
-            long exponent;
-            try {
-                exponent = Long.parseLong(payload.substring(exponentAt + 1));
-            } catch (NumberFormatException e) {
-                throw original;
-            }
-            String mantissa = payload.substring(0, exponentAt);
-            int dot = mantissa.indexOf('.');
-            int fractionDigits = dot < 0 ? 0 : mantissa.length() - dot - 1;
-            long scale = fractionDigits - exponent;
-            if (scale < Integer.MIN_VALUE || scale > Integer.MAX_VALUE) {
-                throw original;
-            }
-            String digits = dot < 0 ? mantissa : mantissa.substring(0, dot) + mantissa.substring(dot + 1);
-            return new BigDecimal(new BigInteger(digits), (int) scale);
         }
+        if (line.startsWith(indent)) {
+            return line.substring(indent.length());
+        }
+        if (line.length() < indent.length() && Syntax.firstNonWhitespace(line, 0) >= line.length()) {
+            return "";
+        }
+        int column = 0;
+        while (column < line.length() && line.charAt(column) == indent.charAt(column)) {
+            column++;
+        }
+        throw error(
+                RiffleError.INVALID_INDENTATION,
+                "a line of a multiline string must start with the indentation of the closing '"
+                        + Syntax.RAW_BLOCK_DELIMITER
+                        + "'",
+                lineIndex,
+                column);
     }
 
     private RiffleString bareString(String line, int from, int lineIndex, String path, RiffleLocation location) {
@@ -619,13 +391,6 @@ final class RiffleParser {
             }
         }
         return new RiffleString(text, path, location);
-    }
-
-    private static boolean isElementType(String word) {
-        return switch (word) {
-            case "string", "int", "long", "decimal", "boolean", "null", "map", "array" -> true;
-            default -> false;
-        };
     }
 
     // ---------------------------------------------------------------- quoted strings
@@ -699,8 +464,7 @@ final class RiffleParser {
                         i = unicodeEscape(line, i, to, lineIndex, out);
                         continue;
                     }
-                    default ->
-                        throw error(RiffleError.INVALID_ESCAPE, "invalid escape '\\" + escape + "'", lineIndex, i);
+                    default -> throw error(RiffleError.INVALID_ESCAPE, "unsupported escape sequence", lineIndex, i);
                 }
                 i += 2;
                 continue;
@@ -731,6 +495,9 @@ final class RiffleParser {
         }
         if (Character.isLowSurrogate((char) codePoint)) {
             throw error(RiffleError.INVALID_ESCAPE, "isolated surrogate in a \\u escape", lineIndex, backslash);
+        }
+        if (codePoint == 0) {
+            throw error(RiffleError.INVALID_ESCAPE, "U+0000 is not allowed in a string", lineIndex, backslash);
         }
         out.append((char) codePoint);
         return i;

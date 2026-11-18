@@ -1,32 +1,18 @@
 # SYNTAX TEST "Packages/Riffle/Riffle.sublime-syntax"
 
-schemaVersion : @int 1
+schemaVersion : 1
 #^^^^^^^^^^^^ entity.name.tag.riffle
 #             ^ keyword.operator.assignment.riffle
-#                ^^^ storage.type.numeric.int.riffle
-#                    ^ constant.numeric.integer.int.riffle
+#               ^ string.unquoted.riffle
 
 name : hello world
 #      ^^^^^^^^^^^ string.unquoted.riffle
 
-count : @long 9000000000
-#        ^^^^ storage.type.numeric.long.riffle
-#             ^^^^^^^^^^ constant.numeric.integer.long.riffle
+reserved : @scope/name
+#          ^^^^^^^^^^^ invalid.illegal.reserved-value.riffle
 
-ratio : @decimal -0.125
-#        ^^^^^^^ storage.type.numeric.decimal.riffle
-#                ^^^^^^ constant.numeric.decimal.riffle
-
-enabled : @boolean true
-#          ^^^^^^^ storage.type.boolean.riffle
-#                  ^^^^ constant.language.boolean.riffle
-
-missing : @null
-#          ^^^^ constant.language.null.riffle
-
-literal : @string @int 123
-#          ^^^^^^ storage.type.string.riffle
-#                 ^^^^^^^^ string.unquoted.riffle
+scoped : "@scope/name"
+#         ^^^^^^^^^^^ string.quoted.double.riffle
 
 # a comment line
 # ^^^^^^^^^^^^^^ comment.line.number-sign.riffle
@@ -71,9 +57,23 @@ emptyMap : {}
 emptyArray : []
 #            ^ punctuation.section.array.begin.riffle
 
-typedEmpty : @int []
-#             ^^^ storage.type.numeric.int.riffle
-#                 ^ punctuation.section.array.begin.riffle
+single : """abc"""
+#        ^ punctuation.definition.string.begin.riffle
+#                ^ punctuation.definition.string.end.riffle
+
+certificate : """
+#             ^^^ punctuation.definition.string.begin.riffle
+    # not a comment \n
+#   ^^^^^^^^^^^^^^^^^^ string.quoted.triple.riffle
+#                   ^^ - constant.character.escape.riffle
+    /#
+#   ^^ string.quoted.triple.riffle - comment.block.riffle
+    #/
+#   ^^ string.quoted.triple.riffle - comment.block.riffle
+    """x
+#   ^^^^ string.quoted.triple.riffle
+    """
+#   ^^^ punctuation.definition.string.end.riffle
 
 capabilities : {
 #              ^ punctuation.section.mapping.begin.riffle
@@ -87,28 +87,21 @@ capabilities : {
     nested : {
 #            ^ punctuation.section.mapping.begin.riffle
 
-        port : @int 8080
-#              ^^^ storage.type.numeric.int.riffle
-#                  ^^^^ constant.numeric.integer.int.riffle
+        port : 8080
+#              ^^^^ string.unquoted.riffle
 
     }
 #   ^ punctuation.section.mapping.end.riffle
 
-    ports : @int [
-#            ^^^ storage.type.numeric.int.riffle
-#                ^ punctuation.section.array.begin.riffle
-
-        8080
-#       ^^^^ constant.numeric.integer.int.riffle
-
-    ]
-#   ^ punctuation.section.array.end.riffle
-
     values : [
 #            ^ punctuation.section.array.begin.riffle
 
-        @null
-#        ^^^^ constant.language.null.riffle
+        """
+#       ^^^ punctuation.definition.string.begin.riffle
+        element
+#       ^^^^^^^ string.quoted.triple.riffle
+        """
+#       ^^^ punctuation.definition.string.end.riffle
 
         true
 #       ^^^^ string.unquoted.riffle
@@ -116,19 +109,10 @@ capabilities : {
     ]
 #   ^ punctuation.section.array.end.riffle
 
-    flags : @boolean [
-#            ^^^^^^^ storage.type.boolean.riffle
-
-        true
-#       ^^^^ constant.language.boolean.riffle
-
-    ]
-#   ^ punctuation.section.array.end.riffle
-
 }
 
-bad : @float 1.0
-#     ^^^^^^ invalid.illegal.unknown-type.riffle
+bad : @int 1
+#     ^^^^^^ invalid.illegal.reserved-value.riffle
 
 inline : [ one ]
 #        ^ invalid.illegal.unsupported-inline-collection.riffle
@@ -141,6 +125,8 @@ disabled : {
 #^^^^^^^^^^ comment.block.riffle
 /#
 #^ comment.block.riffle
+"""
+#^^ comment.block.riffle - punctuation.definition.string.begin.riffle
 deeper : @int not-a-number
 #^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.riffle
 #/

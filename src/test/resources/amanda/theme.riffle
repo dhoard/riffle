@@ -1,4 +1,4 @@
-schemaVersion : @int 1
+schemaVersion : 1
 colors : {
     accent : "#8abeb7"
     error : "#cc6666"

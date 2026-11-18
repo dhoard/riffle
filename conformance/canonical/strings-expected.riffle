@@ -4,6 +4,9 @@ stringNull : null
 bareWithHash : https://example.org/a#fragment
 bareWithSlashes : path//segment
 "display name" : Jane Doe
-escaped : "line one\nline two ☺"
+escaped : """
+    line one
+    line two ☺
+    """
 literalAt : "@int 123"
 equals : a=b

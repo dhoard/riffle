@@ -111,18 +111,15 @@ class ParserTest {
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.TRAILING_TOKENS));
-        // A typed scalar's payload is the rest of the line, so the text becomes part of it.
-        assertThatThrownBy(() -> Riffle.parse("a : @int 1 # one"))
-                .isInstanceOfSatisfying(
-                        RiffleParseException.class,
-                        e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_TYPED_VALUE));
+        // A bare value runs to the end of the line, so the text becomes part of it.
+        assertThat(value("k : 1 # one").asString()).isEqualTo("1 # one");
     }
 
     @Test
     void commentsMayFollowValuesOpenersAndClosersOnTheirOwnLines() {
         RiffleObject root = map("""
                 # one
-                a : @int 1
+                a : 1
                 # note
                 b : "x"
                 # open
@@ -190,6 +187,12 @@ class ParserTest {
     }
 
     @Test
+    void aValueStartingWithAtMustBeQuoted() {
+        assertThat(value("k : \"@scope/name\"").asString()).isEqualTo("@scope/name");
+        assertThat(value("k : user@example.com").asString()).isEqualTo("user@example.com");
+    }
+
+    @Test
     void quotedStringsSupportJsonEscapes() {
         RiffleObject root = map("""
                 quote : "a\\"b"
@@ -212,47 +215,10 @@ class ParserTest {
     }
 
     @Test
-    void typedScalarsParse() {
-        RiffleObject root = map("""
-                i : @int 42
-                n : @int -7
-                l : @long 9223372036854775807
-                d : @decimal -0.125
-                e : @decimal 1e3
-                big : @decimal 12345678901234567890.123456789
-                t : @boolean true
-                f : @boolean false
-                s : @string true
-                q : @string "quoted"
-                nothing : @null
-                """);
-        assertThat(root.get("i").asInt()).isEqualTo(42);
-        assertThat(root.get("n").asInt()).isEqualTo(-7);
-        assertThat(root.get("l").asLong()).isEqualTo(Long.MAX_VALUE);
-        assertThat(root.get("d").asDecimal()).isEqualByComparingTo("-0.125");
-        assertThat(root.get("e").asDecimal()).isEqualByComparingTo("1000");
-        assertThat(root.get("big").asDecimal()).isEqualByComparingTo("12345678901234567890.123456789");
-        assertThat(root.get("t").asBoolean()).isTrue();
-        assertThat(root.get("f").asBoolean()).isFalse();
-        assertThat(root.get("s").asString()).isEqualTo("true");
-        assertThat(root.get("q").asString()).isEqualTo("quoted");
-        assertThat(root.get("nothing").isNull()).isTrue();
-    }
-
-    @Test
-    void decimalEqualityIgnoresScale() {
-        assertThat(value("k : @decimal 1.0")).isEqualTo(value("k : @decimal 1.00"));
-        assertThat(value("k : @decimal 1e3")).isEqualTo(value("k : @decimal 1000"));
-        assertThat(value("k : @decimal 1.5")).isNotEqualTo(value("k : @decimal 1.50e1"));
-    }
-
-    @Test
     void emptyCollectionsAreInline() {
-        RiffleObject root = map("a : {}\nb : []\nc : @int []\nd : @map []\n");
+        RiffleObject root = map("a : {}\nb : []\n");
         assertThat(root.get("a").asObject().entries()).isEmpty();
         assertThat(root.get("b").asArray().values()).isEmpty();
-        assertThat(root.get("c").asArray().values()).isEmpty();
-        assertThat(root.get("d").asArray().values()).isEmpty();
     }
 
     @Test
@@ -260,13 +226,12 @@ class ParserTest {
         RiffleObject root = map("""
                 server : {
                     host : localhost
-                    port : @int 8080
+                    port : 8080
                 }
                 values : [
                     hello
-                    @int 123
-                    @boolean true
-                    @null
+                    123
+                    true
                     {
                         name : example
                     }
@@ -278,85 +243,14 @@ class ParserTest {
                 """);
         assertThat(root.get("server").asObject().get("port").asInt()).isEqualTo(8080);
         RiffleArray values = root.get("values").asArray();
-        assertThat(values.size()).isEqualTo(6);
+        assertThat(values.size()).isEqualTo(5);
         assertThat(values.get(0).asString()).isEqualTo("hello");
         assertThat(values.get(1).asInt()).isEqualTo(123);
         assertThat(values.get(2).asBoolean()).isTrue();
-        assertThat(values.get(3).isNull()).isTrue();
-        assertThat(values.get(4).asObject().get("name").asString()).isEqualTo("example");
-        assertThat(values.get(5).asArray().values())
+        assertThat(values.get(3).asObject().get("name").asString()).isEqualTo("example");
+        assertThat(values.get(4).asArray().values())
                 .extracting(RiffleValue::asString)
                 .containsExactly("one", "two");
-    }
-
-    @Test
-    void typedArraysSupplyTheElementType() {
-        RiffleObject root = map("""
-                ports : @int [
-                    8080
-                    -1
-                ]
-                flags : @boolean [
-                    true
-                    false
-                ]
-                levels : @string [
-                    low
-                    true
-                ]
-                nulls : @null [
-                    null
-                    null
-                ]
-                servers : @map [
-                    {
-                        host : a
-                    }
-                    {}
-                ]
-                rows : @array [
-                    [
-                        @int 1
-                    ]
-                    @int [
-                        2
-                        3
-                    ]
-                ]
-                """);
-        assertThat(root.get("ports").asArray().values())
-                .extracting(RiffleValue::asInt)
-                .containsExactly(8080, -1);
-        assertThat(root.get("flags").asArray().values())
-                .extracting(RiffleValue::asBoolean)
-                .containsExactly(true, false);
-        assertThat(root.get("levels").asArray().values())
-                .extracting(RiffleValue::asString)
-                .containsExactly("low", "true");
-        assertThat(root.get("nulls").asArray().values())
-                .allSatisfy(v -> assertThat(v.isNull()).isTrue());
-        assertThat(root.get("servers").asArray().get(0).asObject().get("host").asString())
-                .isEqualTo("a");
-        assertThat(root.get("servers").asArray().get(1).asObject().entries()).isEmpty();
-        assertThat(root.get("rows").asArray().size()).isEqualTo(2);
-        assertThat(root.get("rows").asArray().get(0).asArray().get(0).asInt()).isEqualTo(1);
-        assertThat(root.get("rows").asArray().get(1).asArray().values())
-                .extracting(RiffleValue::asInt)
-                .containsExactly(2, 3);
-    }
-
-    @Test
-    void typedAndUntypedArraysHaveTheSameValue() {
-        assertThat(value("k : @int [\n    1\n]")).isEqualTo(value("k : [\n    @int 1\n]"));
-        assertThat(value("k : @string [\n    a\n]")).isEqualTo(value("k : [\n    a\n]"));
-        assertThat(value("k : @null []")).isEqualTo(value("k : []"));
-    }
-
-    @Test
-    void aBareNullInAnArrayIsAString() {
-        RiffleArray array = map("k : [\n    null\n    @null\n]").get("k").asArray();
-        assertThat(array.get(0).asString()).isEqualTo("null");
-        assertThat(array.get(1).isNull()).isTrue();
     }
 
     @Test
@@ -394,7 +288,7 @@ class ParserTest {
 
     @Test
     void valuesRecordLineColumnAndPath() {
-        RiffleValue value = map("a : {\n    b : [\n        @int 1\n    ]\n}\n")
+        RiffleValue value = map("a : {\n    b : [\n        1\n    ]\n}\n")
                 .get("a")
                 .asObject()
                 .get("b")
@@ -419,7 +313,7 @@ class ParserTest {
     void documentsReadFromFilesAreParsed() throws Exception {
         Path file = Files.createTempFile("riffle", ".riffle");
         try {
-            Files.writeString(file, "a : @int 1\n", StandardCharsets.UTF_8);
+            Files.writeString(file, "a : 1\n", StandardCharsets.UTF_8);
             assertThat(Riffle.parse(file).get("a").asInt()).isEqualTo(1);
         } finally {
             Files.deleteIfExists(file);

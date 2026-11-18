@@ -5,9 +5,8 @@ greeting : "  Hello!  "
 
 model : {
     name : claude-sonnet
-    temperature : @decimal 0.7
-    maxTokens : @int 8192
-    stop : @null
+    temperature : 0.7
+    maxTokens : 8192
 }
 
 tools : [
@@ -19,15 +18,18 @@ tools : [
 
 permissions : {
     shell : {
-        enabled : @boolean true
-        timeoutMillis : @long 60000
+        enabled : true
+        timeoutMillis : 60000
     }
     network : {}
 }
 
 prompts : [
-    # Strings are single-line. Use \n inside a quoted string for a line break.
-    "Use punctuation freely: # ; : [ ] { } =\nContinue on the next line."
+    # A raw block keeps every character literally, across as many lines as it needs.
+    """
+    Use punctuation freely: # ; : [ ] { } =
+    Continue on the next line.
+    """
 
     # Quotes preserve leading and trailing whitespace.
     "Preserve this leading whitespace:  "

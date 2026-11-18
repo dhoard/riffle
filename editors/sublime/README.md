@@ -49,11 +49,12 @@ key/value grammar, so these cases behave as the language defines them:
   comment: `"a # b"` is the value `a # b`, while `"a" # trailing` is invalid.
 - A quoted key ends at the first unescaped quote, because a key ends at `:`.
 - Nonempty collections are only accepted in block form, an opener must end its
-  line, and a closer must be alone on its line. The inline forms `{ }`,
-  `[ one ]` and `@int [ 1 ]` are marked invalid.
-- Elements of a typed array are highlighted by the declared element kind
-  without a repeated marker, so `@int [` highlights bare integers and
-  `@null [` highlights the literal `null`.
+  line, and a closer must be alone on its line. The inline forms `{ }`
+  and `[ one ]` are marked invalid.
+- `"""` at the end of a value opens a raw block. Its content is a string with no
+  comment or escape scopes, so a `/#` line inside it stays content. A `"""` line
+  inside a block comment stays comment text.
+- A bare value that starts with `@` is marked invalid, because `@` is reserved.
 - Escapes are highlighted individually: `\" \\ \n \r \t \b \f` and `\uXXXX`,
   with surrogate pairs as two consecutive escapes. Unsupported escapes and
   isolated surrogate escapes are marked invalid.
@@ -70,13 +71,8 @@ The root scope is `source.riffle`. Theme authors can rely on:
 | bare value | `string.unquoted.riffle` |
 | string escape | `constant.character.escape.riffle` |
 | `:` | `keyword.operator.assignment.riffle` |
-| `@` of a type marker | `punctuation.definition.annotation.riffle` |
-| `@int` `@long` `@decimal` `@boolean` marker | `storage.type.numeric.*` / `storage.type.boolean.riffle` |
-| `@string` marker, and `@string` `@int` `@long` `@decimal` `@boolean` `@null` `@map` `@array` in a typed array opener | `storage.type.*.riffle` |
-| `int`, `long` payload | `constant.numeric.integer.int` / `.long.riffle` |
-| `decimal` payload | `constant.numeric.decimal.riffle` |
-| `true`, `false` | `constant.language.boolean.riffle` |
-| `@null`, and `null` inside `@null [` | `constant.language.null.riffle` |
+| raw block content | `string.quoted.triple.riffle` |
+| `"""` delimiters | `punctuation.definition.string.begin` / `.end.riffle` |
 | `{` `}` | `punctuation.section.mapping.begin` / `.end.riffle` |
 | `[` `]` | `punctuation.section.array.begin` / `.end.riffle` |
 | line comment | `comment.line.number-sign.riffle` |
@@ -88,7 +84,7 @@ The root scope is `source.riffle`. Theme authors can rely on:
 Highlighting is a lexical pass, not a parser. These are deliberately not
 reported, because they are semantic or runtime errors:
 
-- duplicate keys, integer and decimal range overflow, and the nesting limit;
+- duplicate keys, the nesting limit, and raw-block indentation errors;
 - malformed UTF-8, a lone carriage return, and a BOM inside the document (the
   editor normalizes line endings and strips the BOM before highlighting);
 - an unterminated quoted value: the quote is simply never closed, matching how

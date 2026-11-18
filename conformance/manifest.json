@@ -133,11 +133,6 @@
           "value": "  He said \"hello\"  "
         },
         {
-          "path": "typed",
-          "kind": "string",
-          "value": "He said \"hello\""
-        },
-        {
           "path": "list[0]",
           "kind": "string",
           "value": "one \"two\""
@@ -146,63 +141,6 @@
           "path": "list[1]",
           "kind": "string",
           "value": "a # b"
-        },
-        {
-          "path": "typedList[0]",
-          "kind": "string",
-          "value": "He said \"hello\""
-        }
-      ]
-    },
-    {
-      "id": "valid.all-kinds",
-      "expectation": "valid",
-      "input": "valid/types.riffle",
-      "expectedCanonical": "canonical/types-expected.riffle",
-      "semantics": [
-        {
-          "path": "intMin",
-          "kind": "int",
-          "value": "-2147483648"
-        },
-        {
-          "path": "intMax",
-          "kind": "int",
-          "value": "2147483647"
-        },
-        {
-          "path": "longMin",
-          "kind": "long",
-          "value": "-9223372036854775808"
-        },
-        {
-          "path": "longMax",
-          "kind": "long",
-          "value": "9223372036854775807"
-        },
-        {
-          "path": "decimal",
-          "kind": "decimal",
-          "value": "-0.001"
-        },
-        {
-          "path": "decimalWhole",
-          "kind": "decimal",
-          "value": "1000"
-        },
-        {
-          "path": "boolean",
-          "kind": "boolean",
-          "value": "false"
-        },
-        {
-          "path": "nullValue",
-          "kind": "null"
-        },
-        {
-          "path": "stringValue",
-          "kind": "string",
-          "value": "true"
         }
       ]
     },
@@ -219,97 +157,76 @@
         },
         {
           "path": "mixed[1]",
-          "kind": "int",
+          "kind": "string",
           "value": "1"
         },
         {
           "path": "mixed[2]",
-          "kind": "long",
-          "value": "2"
-        },
-        {
-          "path": "mixed[3]",
-          "kind": "decimal",
+          "kind": "string",
           "value": "0.5"
         },
         {
-          "path": "mixed[4]",
-          "kind": "boolean",
+          "path": "mixed[3]",
+          "kind": "string",
           "value": "true"
         },
         {
-          "path": "mixed[5]",
-          "kind": "null"
-        },
-        {
-          "path": "mixed[6].key",
+          "path": "mixed[4].key",
           "kind": "string",
           "value": "value"
         },
         {
-          "path": "mixed[7][0]",
+          "path": "mixed[5][0]",
           "kind": "string",
           "value": "nested"
         },
         {
           "path": "emptyNested[0]",
           "kind": "array"
+        },
+        {
+          "path": "emptyNested[1]",
+          "kind": "map"
         }
-      ]
-    },
-    {
-      "id": "valid.typed-arrays",
-      "expectation": "valid",
-      "input": "canonical/typed-array-input.riffle",
-      "expectedCanonical": "canonical/typed-array-expected.riffle",
-      "semantics": [
+      ],
+      "accessors": [
         {
-          "path": "ints[0]",
-          "kind": "int",
-          "value": "-2147483648"
-        },
-        {
-          "path": "longs[0]",
-          "kind": "long",
-          "value": "9000000000"
-        },
-        {
-          "path": "decimals[0]",
-          "kind": "decimal",
+          "path": "mixed[1]",
+          "as": "integer32",
           "value": "1"
         },
         {
-          "path": "flags[1]",
-          "kind": "boolean",
-          "value": "false"
+          "path": "mixed[2]",
+          "as": "decimal",
+          "value": "5E-1"
         },
         {
-          "path": "text[0]",
-          "kind": "string",
-          "value": "low"
+          "path": "mixed[3]",
+          "as": "boolean",
+          "value": "true"
         },
         {
-          "path": "nulls[0]",
-          "kind": "null"
+          "path": "mixed[4]",
+          "as": "map"
         },
         {
-          "path": "maps[0].host",
-          "kind": "string",
-          "value": "a.example"
+          "path": "mixed[5]",
+          "as": "array"
         },
         {
-          "path": "arrays[0][0]",
-          "kind": "int",
-          "value": "1"
+          "path": "mixed[4]",
+          "as": "string",
+          "error": "WRONG_KIND"
         },
         {
-          "path": "arrays[1][1]",
-          "kind": "int",
-          "value": "3"
+          "path": "mixed[0]",
+          "as": "map",
+          "error": "WRONG_KIND"
         },
         {
-          "path": "empty",
-          "kind": "array"
+          "path": "mixed[9]",
+          "as": "string",
+          "error": "MISSING"
         }
       ]
     },
@@ -326,22 +243,35 @@
         },
         {
           "path": "server.endpoints[0].port",
-          "kind": "int",
+          "kind": "string",
           "value": "8080"
         },
         {
           "path": "server.endpoints[1].port",
-          "kind": "long",
+          "kind": "string",
           "value": "9000"
         },
         {
           "path": "server.options.retries",
-          "kind": "int",
+          "kind": "string",
           "value": "3"
         },
         {
           "path": "server.options.labels[1]",
-          "kind": "null"
+          "kind": "string",
+          "value": "secondary"
+        }
+      ],
+      "accessors": [
+        {
+          "path": "server.endpoints[0].port",
+          "as": "integer32",
+          "value": "8080"
+        },
+        {
+          "path": "server.options.absent",
+          "as": "integer32",
+          "error": "MISSING"
         }
       ]
     },
@@ -373,7 +303,7 @@
         },
         {
           "path": "count",
-          "kind": "int",
+          "kind": "string",
           "value": "42"
         },
         {
@@ -479,148 +409,8 @@
         },
         {
           "path": "second",
-          "kind": "int",
+          "kind": "string",
           "value": "2"
-        }
-      ]
-    },
-    {
-      "id": "valid.decimal-normalization",
-      "expectation": "valid",
-      "input": "canonical/decimal-input.riffle",
-      "expectedCanonical": "canonical/decimal-expected.riffle",
-      "semantics": [
-        {
-          "path": "zero",
-          "kind": "decimal",
-          "value": "0"
-        },
-        {
-          "path": "zeroScale",
-          "kind": "decimal",
-          "value": "0"
-        },
-        {
-          "path": "one",
-          "kind": "decimal",
-          "value": "1"
-        },
-        {
-          "path": "thousand",
-          "kind": "decimal",
-          "value": "1000"
-        },
-        {
-          "path": "small",
-          "kind": "decimal",
-          "value": "0.001"
-        },
-        {
-          "path": "negative",
-          "kind": "decimal",
-          "value": "-0.001"
-        },
-        {
-          "path": "fraction",
-          "kind": "decimal",
-          "value": "123.45"
-        },
-        {
-          "path": "largeCoefficient",
-          "kind": "decimal",
-          "value": "123456789012345678901234567890.5"
-        }
-      ]
-    },
-    {
-      "id": "valid.decimal-extreme-exponents",
-      "expectation": "valid",
-      "input": "valid/decimal-extremes.riffle",
-      "expectedCanonical": "canonical/decimal-extremes-expected.riffle",
-      "semantics": [
-        {
-          "path": "max",
-          "kind": "decimal",
-          "value": "1E+2147483647"
-        },
-        {
-          "path": "min",
-          "kind": "decimal",
-          "value": "1E-2147483646"
-        },
-        {
-          "path": "fromTrailingZeros",
-          "kind": "decimal",
-          "value": "1E+2147483648"
-        }
-      ]
-    },
-    {
-      "id": "valid.decimal-plain-threshold",
-      "expectation": "valid",
-      "input": "valid/decimal-threshold.riffle",
-      "expectedCanonical": "canonical/decimal-threshold-expected.riffle",
-      "semantics": [
-        {
-          "path": "plainMax",
-          "kind": "decimal",
-          "value": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
-        },
-        {
-          "path": "scientific",
-          "kind": "decimal",
-          "value": "1.1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111E+256"
-        },
-        {
-          "path": "negativeMax",
-          "kind": "decimal",
-          "value": "-1.111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111E+255"
-        },
-        {
-          "path": "smallPlain",
-          "kind": "decimal",
-          "value": "0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
-        },
-        {
-          "path": "smallScientific",
-          "kind": "decimal",
-          "value": "1E-255"
-        }
-      ]
-    },
-    {
-      "id": "valid.typed-array-equivalence",
-      "expectation": "valid",
-      "input": "valid/typed-equivalent.riffle",
-      "expectedCanonical": "canonical/equivalence-expected.riffle",
-      "semantics": [
-        {
-          "path": "ports[0]",
-          "kind": "int",
-          "value": "80"
-        },
-        {
-          "path": "ports[1]",
-          "kind": "int",
-          "value": "443"
-        }
-      ]
-    },
-    {
-      "id": "valid.untyped-array-equivalence",
-      "expectation": "valid",
-      "input": "valid/untyped-equivalent.riffle",
-      "expectedCanonical": "canonical/equivalence-expected.riffle",
-      "semantics": [
-        {
-          "path": "ports[0]",
-          "kind": "int",
-          "value": "80"
-        },
-        {
-          "path": "ports[1]",
-          "kind": "int",
-          "value": "443"
         }
       ]
     },
@@ -632,16 +422,515 @@
       "semantics": []
     },
     {
+      "id": "valid.interpretation",
+      "expectation": "valid",
+      "input": "valid/interpretation.riffle",
+      "expectedCanonical": "canonical/interpretation-expected.riffle",
+      "semantics": [
+        {
+          "path": "port",
+          "kind": "string",
+          "value": "8080"
+        },
+        {
+          "path": "quotedPort",
+          "kind": "string",
+          "value": "8080"
+        },
+        {
+          "path": "scale",
+          "kind": "string",
+          "value": "1.50"
+        },
+        {
+          "path": "leadingSpace",
+          "kind": "string",
+          "value": " 5"
+        },
+        {
+          "path": "map",
+          "kind": "map"
+        },
+        {
+          "path": "array",
+          "kind": "array"
+        },
+        {
+          "path": "absent",
+          "kind": "missing"
+        }
+      ],
+      "accessors": [
+        {
+          "path": "port",
+          "as": "integer32",
+          "value": "8080"
+        },
+        {
+          "path": "port",
+          "as": "integer64",
+          "value": "8080"
+        },
+        {
+          "path": "port",
+          "as": "decimal",
+          "value": "808E1"
+        },
+        {
+          "path": "port",
+          "as": "string",
+          "value": "8080"
+        },
+        {
+          "path": "quotedPort",
+          "as": "integer32",
+          "value": "8080"
+        },
+        {
+          "path": "negativeZero",
+          "as": "integer64",
+          "value": "0"
+        },
+        {
+          "path": "negativeZero",
+          "as": "decimal",
+          "value": "0E0"
+        },
+        {
+          "path": "int32Max",
+          "as": "integer32",
+          "value": "2147483647"
+        },
+        {
+          "path": "int32Min",
+          "as": "integer32",
+          "value": "-2147483648"
+        },
+        {
+          "path": "int32Over",
+          "as": "integer32",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "int32Over",
+          "as": "integer64",
+          "value": "2147483648"
+        },
+        {
+          "path": "int32Under",
+          "as": "integer32",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "int32Under",
+          "as": "integer64",
+          "value": "-2147483649"
+        },
+        {
+          "path": "int64Max",
+          "as": "integer64",
+          "value": "9223372036854775807"
+        },
+        {
+          "path": "int64Min",
+          "as": "integer64",
+          "value": "-9223372036854775808"
+        },
+        {
+          "path": "int64Over",
+          "as": "integer64",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "int64Over",
+          "as": "integer32",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "int64Under",
+          "as": "integer64",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "int64Over",
+          "as": "decimal",
+          "value": "9223372036854775808E0"
+        },
+        {
+          "path": "plus",
+          "as": "integer32",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "plus",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "plus",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "leadingZero",
+          "as": "integer32",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "leadingZero",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "leadingZero",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "underscore",
+          "as": "integer32",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "underscore",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "underscore",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "hex",
+          "as": "integer32",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "hex",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "hex",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "leadingSpace",
+          "as": "integer32",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "leadingSpace",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "leadingSpace",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "decimalLooking",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "decimalLooking",
+          "as": "decimal",
+          "value": "12E0"
+        },
+        {
+          "path": "exponent",
+          "as": "integer64",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "exponent",
+          "as": "decimal",
+          "value": "1E3"
+        },
+        {
+          "path": "upperExponent",
+          "as": "decimal",
+          "value": "-25E1"
+        },
+        {
+          "path": "scale",
+          "as": "decimal",
+          "value": "15E-1"
+        },
+        {
+          "path": "noLeadingDigit",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "noFraction",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "notANumber",
+          "as": "decimal",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "exponentMax",
+          "as": "decimal",
+          "value": "1E2147483648"
+        },
+        {
+          "path": "exponentMaxNormalized",
+          "as": "decimal",
+          "value": "1E2147483648"
+        },
+        {
+          "path": "exponentOver",
+          "as": "decimal",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "exponentMin",
+          "as": "decimal",
+          "value": "1E-2147483647"
+        },
+        {
+          "path": "exponentMinNormalized",
+          "as": "decimal",
+          "value": "1E-2147483647"
+        },
+        {
+          "path": "exponentUnder",
+          "as": "decimal",
+          "error": "OUT_OF_RANGE"
+        },
+        {
+          "path": "zeroHugeExponent",
+          "as": "decimal",
+          "value": "0E0"
+        },
+        {
+          "path": "yes",
+          "as": "boolean",
+          "value": "true"
+        },
+        {
+          "path": "no",
+          "as": "boolean",
+          "value": "false"
+        },
+        {
+          "path": "capitalized",
+          "as": "boolean",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "word",
+          "as": "boolean",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "digit",
+          "as": "boolean",
+          "error": "INVALID_FORMAT"
+        },
+        {
+          "path": "map",
+          "as": "string",
+          "error": "WRONG_KIND"
+        },
+        {
+          "path": "map",
+          "as": "integer64",
+          "error": "WRONG_KIND"
+        },
+        {
+          "path": "array",
+          "as": "boolean",
+          "error": "WRONG_KIND"
+        },
+        {
+          "path": "port",
+          "as": "map",
+          "error": "WRONG_KIND"
+        },
+        {
+          "path": "port",
+          "as": "array",
+          "error": "WRONG_KIND"
+        },
+        {
+          "path": "absent",
+          "as": "string",
+          "error": "MISSING"
+        },
+        {
+          "path": "absent",
+          "as": "integer64",
+          "error": "MISSING"
+        }
+      ]
+    },
+    {
+      "id": "valid.raw-blocks",
+      "expectation": "valid",
+      "input": "valid/raw-blocks.riffle",
+      "expectedCanonical": "canonical/raw-blocks-expected.riffle",
+      "semantics": [
+        {
+          "path": "certificate",
+          "kind": "string",
+          "value": "-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIU\n-----END CERTIFICATE-----"
+        },
+        {
+          "path": "query",
+          "kind": "string",
+          "value": "SELECT * FROM users\nWHERE name LIKE '%\\_admin'"
+        },
+        {
+          "path": "empty",
+          "kind": "string",
+          "value": ""
+        },
+        {
+          "path": "oneLine",
+          "kind": "string",
+          "value": "8080"
+        },
+        {
+          "path": "trailingNewline",
+          "kind": "string",
+          "value": "line\n"
+        },
+        {
+          "path": "surroundingBlanks",
+          "kind": "string",
+          "value": "\nmiddle\n"
+        },
+        {
+          "path": "relative",
+          "kind": "string",
+          "value": "  deeper\nflush"
+        },
+        {
+          "path": "whitespace",
+          "kind": "string",
+          "value": "keep  \na\tb\n  \n\nend"
+        },
+        {
+          "path": "literal",
+          "kind": "string",
+          "value": "# not a comment\n// text\n/#\n#/\n{ [ } ] @int 1 \\n\n\"\"\"x\nx\"\"\"\n\"\"\" y"
+        },
+        {
+          "path": "flush",
+          "kind": "string",
+          "value": "one\ntwo"
+        },
+        {
+          "path": "tabs",
+          "kind": "string",
+          "value": "first\nsecond"
+        },
+        {
+          "path": "singleLineQuotes",
+          "kind": "string",
+          "value": "\"\"abc\"\""
+        },
+        {
+          "path": "list[0]",
+          "kind": "string",
+          "value": "a\nb"
+        },
+        {
+          "path": "list[1]",
+          "kind": "string",
+          "value": "plain"
+        },
+        {
+          "path": "nested.inner",
+          "kind": "string",
+          "value": "c\nd"
+        }
+      ],
+      "accessors": [
+        {
+          "path": "oneLine",
+          "as": "integer32",
+          "value": "8080"
+        },
+        {
+          "path": "oneLine",
+          "as": "string",
+          "value": "8080"
+        },
+        {
+          "path": "flush",
+          "as": "integer32",
+          "error": "INVALID_FORMAT"
+        }
+      ]
+    },
+    {
+      "id": "valid.raw-block-comment-interaction",
+      "expectation": "valid",
+      "input": "valid/raw-block-comments.riffle",
+      "expectedCanonical": "canonical/raw-block-comments-expected.riffle",
+      "semantics": [
+        {
+          "path": "commented",
+          "kind": "missing"
+        },
+        {
+          "path": "after",
+          "kind": "string",
+          "value": "value"
+        },
+        {
+          "path": "raw",
+          "kind": "string",
+          "value": "/#\nnot a comment\n#/"
+        },
+        {
+          "path": "last",
+          "kind": "string",
+          "value": "end"
+        }
+      ]
+    },
+    {
+      "id": "valid.raw-block-crlf",
+      "expectation": "valid",
+      "input": "valid/raw-block-crlf.riffle",
+      "expectedCanonical": "canonical/raw-block-crlf-expected.riffle",
+      "semantics": [
+        {
+          "path": "text",
+          "kind": "string",
+          "value": "a\n\nb"
+        }
+      ]
+    },
+    {
+      "id": "valid.quote-character",
+      "expectation": "valid",
+      "input": "valid/quote-character.riffle",
+      "expectedCanonical": "canonical/quote-character-expected.riffle",
+      "semantics": [
+        {
+          "path": "quote",
+          "kind": "string",
+          "value": "\""
+        }
+      ]
+    },
+    {
       "id": "invalid.duplicate-key",
       "expectation": "invalid",
       "input": "invalid/duplicate-key.riffle",
       "errorCategory": "DUPLICATE_KEY"
-    },
-    {
-      "id": "invalid.invalid-number",
-      "expectation": "invalid",
-      "input": "invalid/invalid-number.riffle",
-      "errorCategory": "NUMBER_OUT_OF_RANGE"
     },
     {
       "id": "invalid.invalid-escape",
@@ -669,12 +958,6 @@
       "errorCategory": "RESOURCE_LIMIT_EXCEEDED"
     },
     {
-      "id": "invalid.unsupported-type",
-      "expectation": "invalid",
-      "input": "invalid/unsupported-type.riffle",
-      "errorCategory": "UNKNOWN_TYPE"
-    },
-    {
       "id": "invalid.lone-cr",
       "expectation": "invalid",
       "input": "invalid/lone-cr.riffle",
@@ -697,12 +980,6 @@
       "expectation": "invalid",
       "input": "invalid/isolated-surrogate.riffle",
       "errorCategory": "INVALID_ESCAPE"
-    },
-    {
-      "id": "invalid.decimal-out-of-range",
-      "expectation": "invalid",
-      "input": "invalid/decimal-out-of-range.riffle",
-      "errorCategory": "NUMBER_OUT_OF_RANGE"
     },
     {
       "id": "invalid.root-array",
@@ -733,6 +1010,84 @@
       "expectation": "invalid",
       "input": "invalid/unclosed-comment.riffle",
       "errorCategory": "UNCLOSED_COMMENT"
+    },
+    {
+      "id": "invalid.raw-block-indentation",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-indentation.riffle",
+      "errorCategory": "INVALID_INDENTATION"
+    },
+    {
+      "id": "invalid.raw-block-mixed-indentation",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-mixed-indentation.riffle",
+      "errorCategory": "INVALID_INDENTATION"
+    },
+    {
+      "id": "invalid.raw-block-unterminated",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-unterminated.riffle",
+      "errorCategory": "UNTERMINATED_STRING"
+    },
+    {
+      "id": "invalid.raw-block-text-after-opener",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-text-after-opener.riffle",
+      "errorCategory": "TRAILING_TOKENS"
+    },
+    {
+      "id": "invalid.raw-block-control-character",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-control-character.riffle",
+      "errorCategory": "INVALID_CHARACTER"
+    },
+    {
+      "id": "invalid.raw-block-lone-cr",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-lone-cr.riffle",
+      "errorCategory": "INVALID_LINE_ENDING"
+    },
+    {
+      "id": "invalid.raw-block-key",
+      "expectation": "invalid",
+      "input": "invalid/raw-block-key.riffle",
+      "errorCategory": "MISSING_COLON"
+    },
+    {
+      "id": "invalid.reserved-at",
+      "expectation": "invalid",
+      "input": "invalid/reserved-at.riffle",
+      "errorCategory": "INVALID_VALUE"
+    },
+    {
+      "id": "invalid.reserved-at-element",
+      "expectation": "invalid",
+      "input": "invalid/reserved-at-element.riffle",
+      "errorCategory": "INVALID_VALUE"
+    },
+    {
+      "id": "invalid.former-type-marker",
+      "expectation": "invalid",
+      "input": "invalid/former-type-marker.riffle",
+      "errorCategory": "INVALID_VALUE"
+    },
+    {
+      "id": "invalid.nul-escape",
+      "expectation": "invalid",
+      "input": "invalid/nul-escape.riffle",
+      "errorCategory": "INVALID_ESCAPE"
+    },
+    {
+      "id": "invalid.nul-escape-key",
+      "expectation": "invalid",
+      "input": "invalid/nul-escape-key.riffle",
+      "errorCategory": "INVALID_ESCAPE"
+    },
+    {
+      "id": "invalid.unquoted-bracket",
+      "expectation": "invalid",
+      "input": "invalid/unquoted-bracket.riffle",
+      "errorCategory": "UNSUPPORTED_INLINE_COLLECTION"
     }
   ]
 }

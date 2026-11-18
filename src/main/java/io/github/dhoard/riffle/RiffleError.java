@@ -10,28 +10,20 @@ public enum RiffleError {
     INVALID_CHARACTER,
     /** A quoted string contains an invalid escape sequence. */
     INVALID_ESCAPE,
-    /** A quoted string is not closed on its line. */
+    /** A quoted string is not closed on its line, or a multiline string is never closed. */
     UNTERMINATED_STRING,
+    /** A multiline string line does not start with the indentation of the closing delimiter. */
+    INVALID_INDENTATION,
     /** A map key is neither a bare key nor a valid quoted key. */
     INVALID_KEY,
     /** A map entry has no {@code :}, or a key is not followed by one. */
     MISSING_COLON,
-    /** A typed value has no payload. */
-    MISSING_VALUE,
     /** Characters remain after a complete value. */
     TRAILING_TOKENS,
     /** A value starts with a character that is reserved at that position. */
     INVALID_VALUE,
-    /** A type marker names a type that does not exist. */
-    UNKNOWN_TYPE,
-    /** A typed value or type marker has the wrong form. */
-    INVALID_TYPED_VALUE,
-    /** A numeric literal is outside the range of its type. */
-    NUMBER_OUT_OF_RANGE,
     /** The same key appears twice in one map. */
     DUPLICATE_KEY,
-    /** A typed array element does not match the declared element kind. */
-    INVALID_ARRAY_ELEMENT_TYPE,
     /** A closing delimiter has no open collection. */
     UNEXPECTED_CLOSER,
     /** A closing delimiter does not match the open collection. */

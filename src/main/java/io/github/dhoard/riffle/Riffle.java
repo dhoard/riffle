@@ -15,8 +15,8 @@ import java.util.Objects;
 /**
  * Entry point for parsing and writing Riffle documents.
  *
- * <p>The document root is always an implicit map. Values declare their own kinds with
- * {@code @type} markers, and a bare value is always a string.</p>
+ * <p>The document root is always an implicit map, and every scalar is a string. The program
+ * decides how to read a string through the {@link RiffleValue} accessors.</p>
  *
  * <p>Parsing reads the whole document into memory, and the only structural limit is nesting
  * depth ({@value io.github.dhoard.riffle.Limits#MAX_DEPTH} collections); time and memory stay

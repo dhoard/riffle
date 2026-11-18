@@ -106,7 +106,7 @@ class BlockCommentsTest {
                     # entries below stay disabled
                     /#
                     host : placeholder
-                    port : @int 8080
+                    port : 8080
                     #/
                     host : real
                 }

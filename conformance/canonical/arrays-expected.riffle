@@ -1,11 +1,9 @@
 empty : []
 mixed : [
     text
-    @int 1
-    @long 2
-    @decimal 0.5
-    @boolean true
-    @null
+    1
+    0.5
+    true
     {
         key : value
     }

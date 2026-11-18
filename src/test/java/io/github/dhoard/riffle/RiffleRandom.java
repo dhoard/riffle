@@ -1,17 +1,17 @@
 package io.github.dhoard.riffle;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-/** Generates values that exercise every scalar kind, collection and quoting rule. */
+/** Generates values that exercise every kind, quoting rule and multiline spelling. */
 final class RiffleRandom {
     private static final String[] PIECES = {
         "a", "b", "Z", "0", " ", "\t", "\"", "#", "/", "//", "|", "!", "@", ":", "=", "{", "}", "[", "]", "\n", "é",
-        "💡", "null", "true", "int", "\\", ";", ",", "\uFEFF", "\u0000", "\u001f", "\u007F", "~"
+        "💡", "null", "true", "int", "\\", ";", ",", "\uFEFF", "\u0001", "\u001f", "\u007F", "~", "\"\"\"", "/#", "#/",
+        "    ", "\n\n", "\r"
     };
     private static final String[] SPECIAL = {
         "",
@@ -20,9 +20,8 @@ final class RiffleRandom {
         "true",
         "123",
         "~",
-        "@null",
+        "@reserved",
         "@int 1",
-        "@boolean true",
         "a # b",
         "a // b",
         "#x",
@@ -41,13 +40,26 @@ final class RiffleRandom {
         "\uFEFF",
         "\uFEFFx",
         "x\uFEFFy",
-        "\u0000",
+        "\u0001",
         "\u007F",
+        "a\n",
+        "\na",
+        "\n\n",
+        "a\n\nb",
+        "  a\n\tb  \n   \n",
+        "# c\n// d\n/#\n#/",
+        "\"\"\"\n",
+        "x\n  \"\"\"  \ny",
+        "x\n\"\"\"y\n\"\"\" y",
+        "a\r\nb",
+        "a\n\u0001",
+        "a\n\uFEFF",
         "https://x:1/y?a=b#c"
     };
     private static final String[] KEY_PIECES = {"a", "b", "Z", "0", ".", "-", "_", " ", "=", "@", "é", "\n", "\uFEFF"};
 
     private final Random random;
+    private boolean singleLine;
 
     RiffleRandom(Random random) {
         this.random = random;
@@ -57,28 +69,18 @@ final class RiffleRandom {
         return objectValue(3);
     }
 
-    private RiffleValue value(int depth) {
-        int choice = random.nextInt(depth <= 0 ? 7 : 9);
-        return switch (choice) {
-            case 0 -> RiffleString.of(text());
-            case 1 -> RiffleInt.of(random.nextInt());
-            case 2 -> RiffleLong.of(random.nextLong());
-            case 3 -> RiffleDecimal.of(decimalValue());
-            case 4 -> RiffleBoolean.of(random.nextBoolean());
-            case 5 -> RiffleNull.INSTANCE;
-            case 6 -> RiffleString.of(text());
-            case 7 -> objectValue(depth - 1);
-            default -> arrayValue(depth - 1);
-        };
+    /** A tree with no raw blocks in its canonical form, so every line can be reindented freely. */
+    RiffleObject singleLineObject() {
+        singleLine = true;
+        return objectValue(3);
     }
 
-    private BigDecimal decimalValue() {
-        return switch (random.nextInt(6)) {
-            case 0 -> new BigDecimal("0");
-            case 1 -> new BigDecimal("-0.0001");
-            case 2 -> new BigDecimal("1E+20");
-            case 3 -> new BigDecimal("12345678901234567890.123456789");
-            default -> BigDecimal.valueOf(random.nextInt(2000) - 1000, random.nextInt(4));
+    private RiffleValue value(int depth) {
+        int choice = random.nextInt(depth <= 0 ? 2 : 4);
+        return switch (choice) {
+            case 0, 1 -> RiffleString.of(text());
+            case 2 -> objectValue(depth - 1);
+            default -> arrayValue(depth - 1);
         };
     }
 
@@ -101,6 +103,11 @@ final class RiffleRandom {
     }
 
     private String text() {
+        String text = anyText();
+        return singleLine ? text.replace("\n", "") : text;
+    }
+
+    private String anyText() {
         if (random.nextInt(4) == 0) {
             return SPECIAL[random.nextInt(SPECIAL.length)];
         }

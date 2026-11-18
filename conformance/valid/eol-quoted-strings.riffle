@@ -11,11 +11,7 @@ bareQuotes : He said "hello"
 escapedBackslash : "line \\n"
 escapedNewline : "line \n"
 canonicalLiteral : "  He said "hello"  "
-typed : @string "He said "hello""
 list : [
     "one "two""
     "a # b"
-]
-typedList : @string [
-    "He said \"hello\""
 ]

@@ -1,0 +1,7 @@
+after : value
+raw : """
+    /#
+    not a comment
+    #/
+    """
+last : end

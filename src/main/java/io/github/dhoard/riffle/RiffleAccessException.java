@@ -12,6 +12,8 @@ import java.util.Optional;
 public final class RiffleAccessException extends RiffleException {
     private static final long serialVersionUID = 1L;
 
+    /** The stable error category. */
+    private final RiffleAccessError category;
     /** The key path, or {@code null} when unknown. */
     private final String path;
     /** The source location, or {@code null} for constructed values. */
@@ -19,8 +21,9 @@ public final class RiffleAccessException extends RiffleException {
 
     /**
      * Reports that {@code value} cannot be used, taking the path and source location from the
-     * value so the message has the same form as Riffle's own access errors. Applications use
-     * this for their own conversions, such as durations or colors:
+     * value so the message has the same form as Riffle's own access errors. The category is
+     * {@link RiffleAccessError#INVALID_VALUE}. Applications use this for their own conversions,
+     * such as durations or colors:
      *
      * <pre>{@code
      * static Duration duration(RiffleValue value) {
@@ -41,13 +44,27 @@ public final class RiffleAccessException extends RiffleException {
      * @throws IllegalArgumentException if {@code reason} is blank
      */
     public RiffleAccessException(RiffleValue value, String reason) {
-        this(checkReason(reason), value.path().orElse(null), value.location().orElse(null));
+        this(
+                RiffleAccessError.INVALID_VALUE,
+                checkReason(reason),
+                value.path().orElse(null),
+                value.location().orElse(null));
     }
 
-    RiffleAccessException(String reason, String path, RiffleLocation location) {
+    RiffleAccessException(RiffleAccessError category, String reason, String path, RiffleLocation location) {
         super(format(reason, path, location), reason);
+        this.category = category;
         this.path = path;
         this.location = location;
+    }
+
+    /**
+     * Returns the stable error category.
+     *
+     * @return the category
+     */
+    public RiffleAccessError category() {
+        return category;
     }
 
     /**

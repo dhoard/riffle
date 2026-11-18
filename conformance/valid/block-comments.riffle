@@ -14,7 +14,7 @@ service : {
     # region inside a map body
     /#
     host : placeholder
-    port : @int 8080
+    port : 8080
     #/
     host : real
 }

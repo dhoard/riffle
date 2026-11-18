@@ -3,7 +3,7 @@ package io.github.dhoard.riffle;
 import java.util.Objects;
 import java.util.Optional;
 
-/** An immutable string value, written bare, quoted, or with {@code @string}. */
+/** An immutable string value, written bare or quoted. */
 public final class RiffleString implements RiffleValue {
     private final String text;
     private final String path;
@@ -18,15 +18,18 @@ public final class RiffleString implements RiffleValue {
     /**
      * Creates a string value.
      *
-     * @param text the text; any Unicode text, including control characters, which are escaped
-     *     when the value is written
+     * @param text the text; any Unicode text except U+0000, including control characters, which
+     *     are escaped when the value is written
      * @return the value
-     * @throws IllegalArgumentException if the text contains an unpaired surrogate
+     * @throws IllegalArgumentException if the text contains an unpaired surrogate or U+0000
      */
     public static RiffleString of(String text) {
         Objects.requireNonNull(text, "text");
         if (Syntax.hasUnpairedSurrogate(text)) {
             throw new IllegalArgumentException("string contains an unpaired surrogate");
+        }
+        if (text.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("string contains U+0000");
         }
         return new RiffleString(text, null, null);
     }

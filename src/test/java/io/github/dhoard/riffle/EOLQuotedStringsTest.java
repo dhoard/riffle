@@ -41,7 +41,7 @@ class EOLQuotedStringsTest {
         assertThat(value("\"\"hello\"\"")).isEqualTo("\"hello\"");
         assertThat(value("\"hello\"\"")).isEqualTo("hello\"");
         assertThat(value("\"\"")).isEmpty();
-        assertThat(value("\"\"\"")).isEqualTo("\"");
+        assertThat(value("\"\\\"\"")).isEqualTo("\"");
         assertThat(value("\"\"\"\"")).isEqualTo("\"\"");
         assertThat(value("\"a # b\"")).isEqualTo("a # b");
         assertThat(value("\"a // b\"")).isEqualTo("a // b");
@@ -80,21 +80,15 @@ class EOLQuotedStringsTest {
     }
 
     @Test
-    void typedStringsAndArraysUseTheSameValueRule() {
+    void arrayElementsUseTheSameValueRule() {
         RiffleObject root = Riffle.parse("""
-                typed : @string "He said "hello""
                 list : [
                     "one "two""
                     "a # b"
                 ]
-                typedList : @string [
-                    "He said \"hello\""
-                ]
                 """);
-        assertThat(root.get("typed").asString()).isEqualTo("He said \"hello\"");
         assertThat(root.get("list").asArray().get(0).asString()).isEqualTo("one \"two\"");
         assertThat(root.get("list").asArray().get(1).asString()).isEqualTo("a # b");
-        assertThat(root.get("typedList").asArray().get(0).asString()).isEqualTo("He said \"hello\"");
     }
 
     @Test

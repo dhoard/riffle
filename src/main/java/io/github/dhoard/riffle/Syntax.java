@@ -8,6 +8,9 @@ final class Syntax {
      */
     static final char BYTE_ORDER_MARK = '\uFEFF';
 
+    /** Opens and closes a multiline raw block; it is always alone on its line. */
+    static final String RAW_BLOCK_DELIMITER = "\"\"\"";
+
     private Syntax() {}
 
     /** Riffle horizontal whitespace is space and tab. */
@@ -95,14 +98,44 @@ final class Syntax {
         return true;
     }
 
+    /** Returns whether {@code line} holds only the raw-block delimiter and horizontal whitespace. */
+    static boolean isRawBlockDelimiter(String line) {
+        return trim(line).equals(RAW_BLOCK_DELIMITER);
+    }
+
+    /**
+     * Returns whether {@code text} is written as a raw block: it spans lines, and every character
+     * and line can appear literally inside one (LANGUAGE_SPEC.md §11.2).
+     */
+    static boolean isRawBlockText(String text) {
+        if (text.indexOf('\n') < 0) {
+            return false;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c != '\n' && c != '\t' && (isControl(c) || c == BYTE_ORDER_MARK)) {
+                return false;
+            }
+        }
+        for (String line : text.split("\n", -1)) {
+            if (isRawBlockDelimiter(line)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Returns {@code text} as a quoted map key; keys still close at the first unescaped quote. */
     static String quoteKey(String text) {
         return quote(text, true);
     }
 
-    /** Returns {@code text} as an EOL-delimited quoted value with literal interior quotes. */
+    /**
+     * Returns {@code text} as an EOL-delimited quoted value with literal interior quotes. The
+     * one-character string {@code "} escapes its quote, because {@code """} opens a raw block.
+     */
     static String quoteValue(String text) {
-        return quote(text, false);
+        return text.equals("\"") ? "\"\\\"\"" : quote(text, false);
     }
 
     /**

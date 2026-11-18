@@ -5,7 +5,7 @@
 # The normative grammar is LANGUAGE_SPEC.md at the repository root. Riffle is
 # line oriented: a map entry or array element occupies exactly one line, a
 # nonempty collection opens at the end of a line and closes on a line of its
-# own, and strings never span lines. The contexts below are therefore built
+# own, and only a raw block spans lines. The contexts below are therefore built
 # around whole lines.
 #
 # The rules follow the specification's less obvious corners:
@@ -20,9 +20,11 @@
 #     whitespace may follow the closing quote.
 #   * A quoted *key* ends at the first unescaped quote, because a key ends at
 #     `:` rather than at the end of the line.
+#   * A value that is exactly `"""` opens a raw block. Everything up to the line
+#     holding only `"""` is literal content, including comment markers.
 #
-# Semantic errors are deliberately not detected: duplicate keys, integer range
-# overflow, and malformed UTF-8 are parser or runtime concerns, not syntax.
+# Semantic errors are deliberately not detected: duplicate keys, raw-block
+# indentation, and malformed UTF-8 are parser concerns, not syntax.
 name: Riffle
 file_extensions:
   - riffle
@@ -34,11 +36,6 @@ variables:
   eol: '[ \t]*$'
   # A bare value: runs to the end of the line, trailing whitespace excluded.
   bare_string: '\S(?:.*\S)?'
-  integer: '-?(?:0|[1-9][0-9]*)'
-  decimal: '-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?'
-  # After `@type [`, either the line ends (block form) or an immediately
-  # closing `]` ends it (inline empty form); `@type [ ]` is invalid.
-  typed_array_open: '(?:\][ \t]*|[ \t]*)$'
 
 contexts:
   # The document root is an implicit map: every line is a map entry, a blank
@@ -88,7 +85,7 @@ contexts:
         4: punctuation.definition.string.end.riffle
         6: keyword.operator.assignment.riffle
 
-  # Body of an untyped array, entered after a `key : [` line or an element
+  # Body of an array, entered after a `key : [` line or an element
   # line that opens a nested array.
   array-body:
     - match: '^([ \t]*)(\])'
@@ -122,8 +119,8 @@ contexts:
     - match: '^([ \t]*)(#/)[ \t]*$'
       pop: true
 
-  # A value beginning at the current position: a scalar, a collection, or a
-  # typed array. Block openers must be the last token of the line.
+  # A value beginning at the current position: a scalar, a collection, or a raw
+  # block. Block openers must be the last token of the line.
   value-start:
     # Empty collections, inline form.
     - match: '(\{)(\})(?={{eol}})'
@@ -142,59 +139,19 @@ contexts:
       scope: punctuation.section.array.begin.riffle
       push: array-body
 
-    - include: typed-array-openers
-
-    # `@null` takes no payload.
-    - match: '(@)(null)(?![A-Za-z0-9_.-])(?={{eol}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: constant.language.null.riffle
-    # `@string` with a quoted payload.
-    - match: '(@)(string)(?![A-Za-z0-9_.-])([ \t]+)(")'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.string.riffle
-        4: punctuation.definition.string.begin.riffle
-      push: quoted-value-body
-    # `@string` with a bare payload; `@string @int 1` is the string `@int 1`.
-    - match: '(@)(string)(?![A-Za-z0-9_.-])([ \t]+)({{bare_string}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.string.riffle
-        4: string.unquoted.riffle
-    # `@int`, `@long`, `@decimal` and `@boolean` require a space and a payload.
-    - match: '(@)(int)(?![A-Za-z0-9_.-])([ \t]+)({{integer}})(?={{eol}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.numeric.int.riffle
-        4: constant.numeric.integer.int.riffle
-    - match: '(@)(long)(?![A-Za-z0-9_.-])([ \t]+)({{integer}})(?={{eol}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.numeric.long.riffle
-        4: constant.numeric.integer.long.riffle
-    - match: '(@)(decimal)(?![A-Za-z0-9_.-])([ \t]+)({{decimal}})(?={{eol}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.numeric.decimal.riffle
-        4: constant.numeric.decimal.riffle
-    - match: '(@)(boolean)(?![A-Za-z0-9_.-])([ \t]+)(true|false)(?={{eol}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.boolean.riffle
-        4: constant.language.boolean.riffle
+    # A raw block: the whole value fragment is exactly three quotes.
+    - match: '"""(?={{eol}})'
+      scope: punctuation.definition.string.begin.riffle
+      push: raw-block-body
 
     # A quoted value: the closing delimiter is chosen inside the context.
     - match: '"'
       scope: punctuation.definition.string.begin.riffle
       push: quoted-value-body
 
-    # A type marker that is known but whose payload is missing or malformed.
-    - match: '@(?:null|string|int|long|decimal|boolean)(?![A-Za-z0-9_.-]).*$'
-      scope: invalid.illegal.typed-value.riffle
-    # A type marker that names no known type.
-    - match: '@[A-Za-z][A-Za-z0-9_]*'
-      scope: invalid.illegal.unknown-type.riffle
+    # `@` is reserved at the start of a value; such a value must be quoted.
+    - match: '@.*$'
+      scope: invalid.illegal.reserved-value.riffle
 
     # `{`, `[`, `}` and `]` are reserved at the start of a value, and a
     # nonempty collection may not be written inline.
@@ -215,150 +172,14 @@ contexts:
       captures:
         1: string.unquoted.riffle
 
-  # `@type [` and `@type []` for every element kind. A block typed array pushes
-  # the body for that kind; the inline empty form is closed by the `]` rule of
-  # that body, which is why the opener also accepts a directly following `]`.
-  typed-array-openers:
-    - match: '(@)(string)([ \t]+)(\[)(?={{typed_array_open}})'
+  # Interior of a raw block. Only the line holding nothing but three quotes ends
+  # it, so comment markers, escapes and delimiters inside are plain content.
+  raw-block-body:
+    - meta_content_scope: string.quoted.triple.riffle
+    - match: '^[ \t]*(""")[ \t]*$'
       captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.string.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-string-body
-    - match: '(@)(int)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.numeric.int.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-int-body
-    - match: '(@)(long)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.numeric.long.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-long-body
-    - match: '(@)(decimal)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.numeric.decimal.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-decimal-body
-    - match: '(@)(boolean)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.boolean.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-boolean-body
-    - match: '(@)(null)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.null.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-null-body
-    - match: '(@)(map)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.map.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-map-body
-    - match: '(@)(array)([ \t]+)(\[)(?={{typed_array_open}})'
-      captures:
-        1: punctuation.definition.annotation.riffle
-        2: storage.type.array.riffle
-        4: punctuation.section.array.begin.riffle
-      push: typed-array-array-body
-
-  # Rules shared by every typed array body: comments, the closing `]`, and a
-  # `}` that closes the wrong collection. The closer is not anchored to the
-  # start of the line so that `@type []` can close on the opener line.
-  typed-array-common:
-    - include: comments
-    - match: '\]'
-      scope: punctuation.section.array.end.riffle
+        1: punctuation.definition.string.end.riffle
       pop: true
-    - match: '\}'
-      scope: invalid.illegal.mismatched-closer.riffle
-
-  # Elements of a `@string [` array are strings, quoted or bare; a line that
-  # starts with a reserved character must be quoted.
-  typed-array-string-body:
-    - include: typed-array-common
-    - match: '"'
-      scope: punctuation.definition.string.begin.riffle
-      push: quoted-value-body
-    - match: '(?=[^\s"@\[\]{}])({{bare_string}})'
-      captures:
-        1: string.unquoted.riffle
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  # Elements of a `@int [` array are bare integers without a repeated marker.
-  typed-array-int-body:
-    - include: typed-array-common
-    - match: '({{integer}})(?={{eol}})'
-      captures:
-        1: constant.numeric.integer.int.riffle
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  typed-array-long-body:
-    - include: typed-array-common
-    - match: '({{integer}})(?={{eol}})'
-      captures:
-        1: constant.numeric.integer.long.riffle
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  typed-array-decimal-body:
-    - include: typed-array-common
-    - match: '({{decimal}})(?={{eol}})'
-      captures:
-        1: constant.numeric.decimal.riffle
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  typed-array-boolean-body:
-    - include: typed-array-common
-    - match: '(true|false)(?={{eol}})'
-      captures:
-        1: constant.language.boolean.riffle
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  # The only legal element of a `@null [` array is the literal `null`.
-  typed-array-null-body:
-    - include: typed-array-common
-    - match: '(null)(?={{eol}})'
-      captures:
-        1: constant.language.null.riffle
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  typed-array-map-body:
-    - include: typed-array-common
-    - match: '(\{)(\})(?={{eol}})'
-      captures:
-        1: punctuation.section.mapping.begin.riffle
-        2: punctuation.section.mapping.end.riffle
-    - match: '\{(?={{eol}})'
-      scope: punctuation.section.mapping.begin.riffle
-      push: map-body
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
-
-  # Elements of a `@array [` array are arrays or nested typed arrays.
-  typed-array-array-body:
-    - include: typed-array-common
-    - match: '(\[)(\])(?={{eol}})'
-      captures:
-        1: punctuation.section.array.begin.riffle
-        2: punctuation.section.array.end.riffle
-    - match: '\[(?={{eol}})'
-      scope: punctuation.section.array.begin.riffle
-      push: array-body
-    - include: typed-array-openers
-    - match: '\S(?:.*?)(?={{eol}})'
-      scope: invalid.illegal.array-element.riffle
 
   # Interior of a quoted value. The closing delimiter is the quote that is
   # followed by nothing but whitespace, which is the last quote on the line and

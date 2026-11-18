@@ -21,7 +21,7 @@ class UnicodeEscapeTest {
                 Arguments.of("\"\\u0041\"", "A"),
                 Arguments.of("\"\\u00e9\"", "é"),
                 Arguments.of("\"\\u00E9\"", "é"),
-                Arguments.of("\"\\u0000\"", "\u0000"),
+                Arguments.of("\"\\u0001\"", "\u0001"),
                 Arguments.of("\"\\u007F\"", "\u007F"),
                 Arguments.of("\"\\uFFFD\"", "\uFFFD"));
     }
@@ -75,7 +75,9 @@ class UnicodeEscapeTest {
                 Arguments.of("\"\\uD83D\""),
                 Arguments.of("\"\\uDCA1\""),
                 Arguments.of("\"\\uD83Dx\""),
-                Arguments.of("\"\\uD83D\\uD83D\""));
+                Arguments.of("\"\\uD83D\\uD83D\""),
+                Arguments.of("\"\\u0000\""),
+                Arguments.of("\"a\\u0000b\""));
     }
 
     @ParameterizedTest(name = "{0}")

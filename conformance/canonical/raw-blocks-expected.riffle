@@ -1,0 +1,63 @@
+certificate : """
+    -----BEGIN CERTIFICATE-----
+    MIIBszCCAVmgAwIBAgIU
+    -----END CERTIFICATE-----
+    """
+query : """
+    SELECT * FROM users
+    WHERE name LIKE '%\_admin'
+    """
+empty : ""
+oneLine : 8080
+trailingNewline : """
+    line
+
+    """
+surroundingBlanks : """
+
+    middle
+
+    """
+relative : """
+      deeper
+    flush
+    """
+whitespace : """
+    keep  
+    a	b
+      
+
+    end
+    """
+literal : """
+    # not a comment
+    // text
+    /#
+    #/
+    { [ } ] @int 1 \n
+    """x
+    x"""
+    """ y
+    """
+flush : """
+    one
+    two
+    """
+tabs : """
+    first
+    second
+    """
+singleLineQuotes : """abc"""
+list : [
+    """
+        a
+        b
+        """
+    plain
+]
+nested : {
+    inner : """
+        c
+        d
+        """
+}

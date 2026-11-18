@@ -1,0 +1,15 @@
+/#
+commented : """
+#/
+after : value
+raw : """
+    /#
+    not a comment
+    #/
+    """
+/#
+"""
+also commented
+"""
+#/
+last : end

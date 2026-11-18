@@ -12,7 +12,7 @@ final class Limits {
      */
     static final int MAX_DEPTH = 128;
 
-    /** The longest plain decimal the writer emits; longer numbers use exponent notation. */
+    /** The longest plain decimal rendered from Java; longer numbers use exponent notation. */
     static final int MAX_PLAIN_DECIMAL = 256;
 
     private Limits() {}

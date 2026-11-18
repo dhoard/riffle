@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,15 +52,12 @@ class WriterTest {
                 "commentish", s("a # b"),
                 "newline", s("a\nb"),
                 "tab", s("a\tb"),
-                "int", RiffleInt.of(42),
-                "long", RiffleLong.of(9007199254740993L),
-                "decimal", RiffleDecimal.of(new BigDecimal("0.25")),
-                "flag", RiffleBoolean.of(true),
-                "nothing", RiffleNull.INSTANCE,
+                "number", s("42"),
+                "flag", s("true"),
                 "emptyMap", object(),
                 "emptyArray", array(),
                 "map", object("a", s("b")),
-                "list", array(s("a"), RiffleInt.of(1)),
+                "list", array(s("a"), s("1")),
                 "key with space", s("v"),
                 "a.b", s("dotted"));
         assertThat(Riffle.write(document)).isEqualTo("""
@@ -74,13 +70,13 @@ class WriterTest {
                 brace : "}"
                 hash : "# x"
                 commentish : a # b
-                newline : "a\\nb"
+                newline : \"""
+                    a
+                    b
+                    \"""
                 tab : "a\\tb"
-                int : @int 42
-                long : @long 9007199254740993
-                decimal : @decimal 0.25
-                flag : @boolean true
-                nothing : @null
+                number : 42
+                flag : true
                 emptyMap : {}
                 emptyArray : []
                 map : {
@@ -88,7 +84,7 @@ class WriterTest {
                 }
                 list : [
                     a
-                    @int 1
+                    1
                 ]
                 "key with space" : v
                 a.b : dotted
@@ -124,6 +120,7 @@ class WriterTest {
                 Arguments.of("x ", "\"x \""),
                 Arguments.of("  x  ", "\"  x  \""),
                 Arguments.of("@int 1", "\"@int 1\""),
+                Arguments.of("@scope/name", "\"@scope/name\""),
                 Arguments.of("#x", "\"#x\""),
                 Arguments.of("//x", "//x"),
                 Arguments.of("# x", "\"# x\""),
@@ -135,7 +132,9 @@ class WriterTest {
                 Arguments.of("]", "\"]\""),
                 Arguments.of("\"quoted\"", "\"\"quoted\"\""),
                 Arguments.of("back\\slash", "back\\slash"),
-                Arguments.of("line1\nline2", "\"line1\\nline2\""),
+                Arguments.of("line1\nline2", "\"\"\"\n    line1\n    line2\n    \"\"\""),
+                Arguments.of("line1\r\nline2", "\"line1\\r\\nline2\""),
+                Arguments.of("\"", "\"\\\"\""),
                 Arguments.of("tab\there", "\"tab\\there\""),
                 Arguments.of("é", "é"));
     }
@@ -188,8 +187,8 @@ class WriterTest {
     void writingIsIdempotentAndRoundTrips() {
         RiffleObject document = object(
                 "a", s("text # not a comment"),
-                "b", RiffleInt.of(-1),
-                "c", array(RiffleBoolean.of(false), RiffleNull.INSTANCE, s("@null")));
+                "b", s("-1"),
+                "c", array(s("false"), s("@reserved")));
         String written = Riffle.write(document);
         assertThat(Riffle.parse(written)).isEqualTo(document);
         assertThat(Riffle.write(Riffle.parse(written))).isEqualTo(written);
@@ -213,7 +212,7 @@ class WriterTest {
     @MethodSource("seeds")
     void reindentingNeverChangesTheValue(int seed) {
         Random random = new Random(seed);
-        RiffleObject value = new RiffleRandom(random).object();
+        RiffleObject value = new RiffleRandom(random).singleLineObject();
         StringBuilder reindented = new StringBuilder();
         for (String line : Riffle.write(value).split("\n", -1)) {
             String stripped = line.replaceFirst("^[ \t]+", "");
@@ -225,16 +224,16 @@ class WriterTest {
     @Test
     void writesAndReadsFilesWithTheSourceNameInDiagnostics(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("config.riffle");
-        RiffleObject value = object("port", RiffleInt.of(80));
+        RiffleObject value = object("port", s("80"));
         Riffle.write(file, value);
-        assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo("port : @int 80\n");
+        assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo("port : 80\n");
         RiffleObject parsed = Riffle.parse(file);
         assertThat(parsed).isEqualTo(value);
         assertThat(parsed.get("port").location().flatMap(RiffleLocation::source))
                 .contains(file.toString());
-        assertThatThrownBy(() -> parsed.get("port").asString())
+        assertThatThrownBy(() -> parsed.get("port").asObject())
                 .isInstanceOf(RiffleAccessException.class)
-                .hasMessage(file + ":1:8: port: expected string but was int");
+                .hasMessage(file + ":1:8: port: expected map but was string");
     }
 
     @Test

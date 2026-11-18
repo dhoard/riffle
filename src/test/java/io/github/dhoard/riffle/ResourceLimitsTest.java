@@ -25,7 +25,7 @@ class ResourceLimitsTest {
 
     /** A root map whose single member holds {@code blocks} alternating maps and arrays. */
     private static RiffleObject mixedChain(int blocks) {
-        RiffleValue value = RiffleNull.INSTANCE;
+        RiffleValue value = RiffleString.of("leaf");
         for (int i = 0; i < blocks; i++) {
             value = i % 2 == 0 ? RiffleObject.of(Map.of("k" + i, value)) : RiffleArray.of(List.of(value));
         }
@@ -34,7 +34,7 @@ class ResourceLimitsTest {
 
     @Test
     void aTreeAtTheNestingLimitCanBeWrittenAndParsed() {
-        RiffleObject value = mapChain(128, RiffleNull.INSTANCE);
+        RiffleObject value = mapChain(128, RiffleString.of("leaf"));
         String written = Riffle.write(value);
         assertThat(Riffle.parse(written)).isEqualTo(value);
         assertThat(Riffle.write(Riffle.parse(written))).isEqualTo(written);
@@ -48,7 +48,7 @@ class ResourceLimitsTest {
 
     @Test
     void aTreeBeyondTheNestingLimitIsRejectedInsteadOfProducingUnparseableText() {
-        assertThatThrownBy(() -> Riffle.write(mapChain(129, RiffleNull.INSTANCE)))
+        assertThatThrownBy(() -> Riffle.write(mapChain(129, RiffleString.of("leaf"))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("nesting")
                 .hasMessageContaining("128");
@@ -67,9 +67,9 @@ class ResourceLimitsTest {
 
     @Test
     void aVeryDeepTreeFailsWithoutStackOverflow() {
-        assertThatThrownBy(() -> Riffle.write(mapChain(20_000, RiffleNull.INSTANCE)))
+        assertThatThrownBy(() -> Riffle.write(mapChain(20_000, RiffleString.of("leaf"))))
                 .isInstanceOf(IllegalArgumentException.class);
-        RiffleValue value = RiffleNull.INSTANCE;
+        RiffleValue value = RiffleString.of("leaf");
         for (int i = 0; i < 20_000; i++) {
             value = RiffleArray.of(List.of(value));
         }
@@ -82,7 +82,7 @@ class ResourceLimitsTest {
     void wideDocumentsAreAccepted() {
         StringBuilder document = new StringBuilder();
         for (int i = 0; i < 20_000; i++) {
-            document.append('k').append(i).append(" : @int ").append(i).append('\n');
+            document.append('k').append(i).append(" : ").append(i).append('\n');
         }
         assertThat(Riffle.parse(document.toString()).entries()).hasSize(20_000);
     }
@@ -99,7 +99,7 @@ class ResourceLimitsTest {
     void manyArrayElementsAreAccepted() {
         StringBuilder document = new StringBuilder("a : [\n");
         for (int i = 0; i < 20_000; i++) {
-            document.append("    @int ").append(i).append('\n');
+            document.append("    ").append(i).append('\n');
         }
         document.append("]\n");
         assertThat(Riffle.parse(document.toString()).get("a").asArray().size()).isEqualTo(20_000);

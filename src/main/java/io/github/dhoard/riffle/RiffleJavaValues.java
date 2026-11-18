@@ -13,28 +13,24 @@ import java.util.Set;
 /**
  * Opt-in conversion between Riffle values and ordinary Java values.
  *
- * <p>These methods never relax {@link RiffleValue}'s strict accessors; they are a separate,
- * explicit boundary. Conversion to Java types discards source locations and key paths, so a
- * round trip cannot recover that metadata. It does preserve all eight semantic kinds for the
- * supported Java types, including the distinction between a missing key and a key present with
- * a null value.</p>
+ * <p>These methods are a separate, explicit boundary. Conversion to Java types discards source
+ * locations and key paths, so a round trip cannot recover that metadata.</p>
  *
- * <p>Resulting maps and lists are defensive, deeply converted, and unmodifiable. Unlike
- * {@link Map#copyOf(Map)} and {@link List#copyOf(java.util.Collection)}, they accept null
- * elements, because Riffle permits {@code @null}. Iteration order is preserved.</p>
+ * <p>Resulting maps and lists are defensive, deeply converted, and unmodifiable, and iteration
+ * order is preserved. Riffle has no null: an absent key is the only way to express "no value".</p>
  */
 public final class RiffleJavaValues {
+    private static final String NULL_VALUE = "null is not a Riffle value; omit the key instead";
+
     private RiffleJavaValues() {}
 
     /**
      * Converts a Riffle value to its native Java representation.
      *
      * @param value the value
-     * @return a {@link String}, {@link Integer}, {@link Long}, {@link BigDecimal},
-     *     {@link Boolean}, an unmodifiable {@link Map}, an unmodifiable {@link List}, or
-     *     {@code null} for a Riffle {@code @null}
-     * @throws NullPointerException if {@code value} is null; pass {@link RiffleNull#INSTANCE}
-     *     to represent Riffle null
+     * @return a {@link String}, an unmodifiable {@link Map}, or an unmodifiable {@link List};
+     *     never {@code null}
+     * @throws NullPointerException if {@code value} is null
      */
     public static Object toJava(RiffleValue value) {
         Objects.requireNonNull(value, "value");
@@ -44,33 +40,14 @@ public final class RiffleJavaValues {
         if (value instanceof RiffleArray array) {
             return toJavaArray(array);
         }
-        if (value instanceof RiffleString string) {
-            return string.text();
-        }
-        if (value instanceof RiffleInt number) {
-            return number.value();
-        }
-        if (value instanceof RiffleLong number) {
-            return number.value();
-        }
-        if (value instanceof RiffleDecimal number) {
-            return number.value();
-        }
-        if (value instanceof RiffleBoolean flag) {
-            return flag.value();
-        }
-        if (value instanceof RiffleNull) {
-            return null;
-        }
-        throw new IllegalStateException(
-                "unsupported Riffle value " + value.getClass().getName());
+        return value.asString();
     }
 
     /**
      * Converts a Riffle map to an unmodifiable, insertion-ordered Java map.
      *
      * @param object the map
-     * @return a defensive copy whose values may be null
+     * @return a defensive copy
      * @throws NullPointerException if {@code object} is null
      */
     public static Map<String, Object> toJava(RiffleObject object) {
@@ -84,22 +61,20 @@ public final class RiffleJavaValues {
 
     /**
      * Converts a Java value to a Riffle value. Only {@link String}, {@link Integer},
-     * {@link Long}, {@link BigDecimal}, {@link Boolean}, {@code null}, {@link Map}, and
-     * {@link List} are supported; map keys must be non-null strings.
+     * {@link Long}, {@link BigDecimal}, {@link Boolean}, {@link Map}, and {@link List} are
+     * supported; map keys must be non-null strings. A number or boolean becomes its canonical
+     * text, which the matching {@link RiffleValue} accessor accepts.
      *
      * <p>Conversion is fully recursive and defensive. Identity cycles in maps and lists are
      * rejected; shared acyclic children are converted independently.</p>
      *
-     * @param value the Java value, which may be null
+     * @param value the Java value
      * @return the corresponding Riffle value, with no source metadata
-     * @throws IllegalArgumentException if the type is unsupported, a map key is not a string,
-     *     a string contains an unpaired surrogate, a decimal or nesting limit is exceeded,
-     *     or a collection graph contains a cycle
+     * @throws IllegalArgumentException if the value is null or its type is unsupported, a map key
+     *     is not a string, a string contains an unpaired surrogate or U+0000, a decimal or nesting
+     *     limit is exceeded, or a collection graph contains a cycle
      */
     public static RiffleValue fromJava(Object value) {
-        if (value == null) {
-            return RiffleNull.INSTANCE;
-        }
         return convert(value, 0, newActiveSet());
     }
 
@@ -109,11 +84,12 @@ public final class RiffleJavaValues {
      *
      * @param object the map
      * @return the corresponding Riffle map, with no source metadata
-     * @throws NullPointerException if {@code object} is null
      * @throws IllegalArgumentException under the same conditions as {@link #fromJava(Object)}
      */
     public static RiffleObject fromJava(Map<String, ?> object) {
-        Objects.requireNonNull(object, "object");
+        if (object == null) {
+            throw new IllegalArgumentException(NULL_VALUE);
+        }
         return convertMap(object, 0, newActiveSet());
     }
 
@@ -127,26 +103,16 @@ public final class RiffleJavaValues {
 
     private static RiffleValue convert(Object value, int level, Set<Object> active) {
         if (value == null) {
-            return RiffleNull.INSTANCE;
+            throw new IllegalArgumentException(NULL_VALUE);
         }
         if (value instanceof String string) {
             return RiffleString.of(string);
         }
-        if (value instanceof Integer number) {
-            return RiffleInt.of(number);
-        }
-        if (value instanceof Long number) {
-            return RiffleLong.of(number);
+        if (value instanceof Integer || value instanceof Long || value instanceof Boolean) {
+            return RiffleString.of(value.toString());
         }
         if (value instanceof BigDecimal decimal) {
-            try {
-                return RiffleDecimal.of(decimal);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("decimal is outside Riffle's exponent range", e);
-            }
-        }
-        if (value instanceof Boolean flag) {
-            return RiffleBoolean.of(flag);
+            return RiffleString.of(decimalText(decimal));
         }
         if (value instanceof Map<?, ?> map) {
             return convertMap(map, level, active);
@@ -154,8 +120,67 @@ public final class RiffleJavaValues {
         if (value instanceof List<?> list) {
             return convertList(list, level, active);
         }
-        throw new IllegalArgumentException(
-                "unsupported Java type " + value.getClass().getName() + "; Riffle accepts only its eight kinds");
+        throw new IllegalArgumentException("unsupported Java type "
+                + value.getClass().getName() + "; Riffle accepts strings, integers, longs, decimals, booleans, maps"
+                + " and lists");
+    }
+
+    /**
+     * Renders a decimal as normalized text that the decimal accessor reads back exactly: plain
+     * notation up to {@link Limits#MAX_PLAIN_DECIMAL} characters and exponent notation beyond it,
+     * so that a value such as {@code 1E+2147483647} never materializes billions of digits.
+     */
+    private static String decimalText(BigDecimal decimal) {
+        BigDecimal value;
+        try {
+            value = decimal.stripTrailingZeros();
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("decimal is outside Riffle's exponent range", e);
+        }
+        if (value.signum() == 0) {
+            return "0";
+        }
+        String digits = value.unscaledValue().abs().toString();
+        long exponent = -(long) value.scale();
+        long adjusted = exponent + digits.length() - 1L;
+
+        StringBuilder token = new StringBuilder();
+        if (value.signum() < 0) {
+            token.append('-');
+        }
+        if (plainLength(value, digits.length(), exponent, adjusted) <= Limits.MAX_PLAIN_DECIMAL) {
+            if (exponent >= 0) {
+                token.append(digits).append("0".repeat((int) exponent));
+            } else if (adjusted >= 0) {
+                int split = (int) adjusted + 1;
+                token.append(digits, 0, split).append('.').append(digits, split, digits.length());
+            } else {
+                token.append("0.").append("0".repeat((int) -adjusted - 1)).append(digits);
+            }
+            return token.toString();
+        }
+
+        token.append(digits.charAt(0));
+        if (digits.length() > 1) {
+            token.append('.').append(digits, 1, digits.length());
+        }
+        return token.append('E')
+                .append(adjusted >= 0 ? '+' : '-')
+                .append(Math.abs(adjusted))
+                .toString();
+    }
+
+    /** Returns the length of the plain notation without building it. */
+    private static long plainLength(BigDecimal value, int digits, long exponent, long adjusted) {
+        long length;
+        if (exponent >= 0) {
+            length = digits + exponent;
+        } else if (adjusted >= 0) {
+            length = digits + 1L;
+        } else {
+            length = digits + 1L - adjusted;
+        }
+        return value.signum() < 0 ? length + 1 : length;
     }
 
     private static RiffleObject convertMap(Map<?, ?> map, int level, Set<Object> active) {

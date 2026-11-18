@@ -33,12 +33,13 @@ public final class RiffleArray implements RiffleContainer {
      * Returns the element at {@code index}.
      *
      * @param index the zero-based index
-     * @return the element, which may be {@link RiffleNull}
+     * @return the element
      * @throws RiffleAccessException if the index is out of range
      */
     public RiffleValue get(int index) {
         if (index < 0 || index >= values.size()) {
             throw new RiffleAccessException(
+                    RiffleAccessError.MISSING,
                     "index out of range for an array of size " + values.size(),
                     Syntax.elementPath(path, index),
                     location);
@@ -47,7 +48,7 @@ public final class RiffleArray implements RiffleContainer {
     }
 
     /**
-     * Returns the string at {@code index}. No coercion is performed.
+     * Returns the string at {@code index}.
      *
      * @param index the zero-based index
      * @return the string
@@ -58,44 +59,44 @@ public final class RiffleArray implements RiffleContainer {
     }
 
     /**
-     * Returns the {@code int} at {@code index}. A {@code long} or {@code decimal} is not accepted.
+     * Reads the string at {@code index} as a signed 32-bit integer.
      *
      * @param index the zero-based index
      * @return the int
-     * @throws RiffleAccessException if the index is out of range or the element is not an int
+     * @throws RiffleAccessException if the index is out of range or the element cannot be read as an int
      */
     public int getInt(int index) {
         return get(index).asInt();
     }
 
     /**
-     * Returns the {@code long} at {@code index}. An {@code int} is not widened.
+     * Reads the string at {@code index} as a signed 64-bit integer.
      *
      * @param index the zero-based index
      * @return the long
-     * @throws RiffleAccessException if the index is out of range or the element is not a long
+     * @throws RiffleAccessException if the index is out of range or the element cannot be read as a long
      */
     public long getLong(int index) {
         return get(index).asLong();
     }
 
     /**
-     * Returns the decimal at {@code index}. Numeric kinds are not converted.
+     * Reads the string at {@code index} as an exact decimal.
      *
      * @param index the zero-based index
      * @return the decimal
-     * @throws RiffleAccessException if the index is out of range or the element is not a decimal
+     * @throws RiffleAccessException if the index is out of range or the element cannot be read as a decimal
      */
     public BigDecimal getDecimal(int index) {
         return get(index).asDecimal();
     }
 
     /**
-     * Returns the boolean at {@code index}.
+     * Reads the string at {@code index} as a boolean.
      *
      * @param index the zero-based index
      * @return the boolean
-     * @throws RiffleAccessException if the index is out of range or the element is not a boolean
+     * @throws RiffleAccessException if the index is out of range or the element cannot be read as a boolean
      */
     public boolean getBoolean(int index) {
         return get(index).asBoolean();

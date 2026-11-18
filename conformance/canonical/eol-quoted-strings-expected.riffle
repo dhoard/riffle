@@ -9,13 +9,12 @@ slashComment : a // b
 escapedBoundary : a" # text
 bareQuotes : He said "hello"
 escapedBackslash : line \n
-escapedNewline : "line \n"
+escapedNewline : """
+    line 
+
+    """
 canonicalLiteral : "  He said "hello"  "
-typed : He said "hello"
 list : [
     one "two"
     a # b
-]
-typedList : [
-    He said "hello"
 ]

@@ -59,6 +59,9 @@ class ConformanceTest {
         for (Object candidate : array(testCase.get("semantics"))) {
             checkSemantics(parsed, object(candidate));
         }
+        for (Object candidate : array(testCase.get("accessors"))) {
+            checkAccessor(parsed, object(candidate));
+        }
     }
 
     private static void runInvalid(Map<String, Object> testCase) {
@@ -86,28 +89,49 @@ class ConformanceTest {
                 assertThat(value.isString()).as(path).isTrue();
                 assertThat(value.asString()).as(path).isEqualTo(string(assertion.get("value")));
             }
-            case "int" -> {
-                assertThat(value.isInt()).as(path).isTrue();
-                assertThat(value.asInt()).as(path).isEqualTo(Integer.parseInt(string(assertion.get("value"))));
-            }
-            case "long" -> {
-                assertThat(value.isLong()).as(path).isTrue();
-                assertThat(value.asLong()).as(path).isEqualTo(Long.parseLong(string(assertion.get("value"))));
-            }
-            case "decimal" -> {
-                assertThat(value.isDecimal()).as(path).isTrue();
-                String canonical = Riffle.write(RiffleObject.of(Map.of("v", value)));
-                assertThat(canonical).as(path).isEqualTo("v : @decimal " + string(assertion.get("value")) + "\n");
-            }
-            case "boolean" -> {
-                assertThat(value.isBoolean()).as(path).isTrue();
-                assertThat(value.asBoolean()).as(path).isEqualTo(Boolean.parseBoolean(string(assertion.get("value"))));
-            }
-            case "null" -> assertThat(value.isNull()).as(path).isTrue();
             case "map" -> assertThat(value.isObject()).as(path).isTrue();
             case "array" -> assertThat(value.isArray()).as(path).isTrue();
             default -> throw new AssertionError("unknown semantic kind: " + kind);
         }
+    }
+
+    /** Reads a path as the requested interpretation and checks the value or the error category. */
+    private static void checkAccessor(RiffleObject root, Map<String, Object> assertion) {
+        String path = string(assertion.get("path"));
+        String as = string(assertion.get("as"));
+        String description = path + " as " + as;
+        if (assertion.containsKey("error")) {
+            String expected = string(assertion.get("error"));
+            assertThatThrownBy(() -> read(root, path, as))
+                    .as(description)
+                    .isInstanceOfSatisfying(
+                            RiffleAccessException.class,
+                            e -> assertThat(e.category().name()).isEqualTo(expected));
+            return;
+        }
+        String actual = read(root, path, as);
+        if (assertion.containsKey("value")) {
+            assertThat(actual).as(description).isEqualTo(string(assertion.get("value")));
+        }
+    }
+
+    /** Returns the interpreted value in the manifest's text form; collections return their kind. */
+    private static String read(RiffleObject root, String path, String as) {
+        RiffleValue value = find(root, path)
+                .orElseThrow(() -> new RiffleAccessException(RiffleAccessError.MISSING, "missing", path, null));
+        return switch (as) {
+            case "string" -> value.asString();
+            case "integer32" -> Integer.toString(value.asInt());
+            case "integer64" -> Long.toString(value.asLong());
+            case "decimal" -> {
+                BigDecimal decimal = value.asDecimal();
+                yield decimal.unscaledValue() + "E" + -(long) decimal.scale();
+            }
+            case "boolean" -> Boolean.toString(value.asBoolean());
+            case "map" -> value.asObject().getClass().getSimpleName();
+            case "array" -> value.asArray().getClass().getSimpleName();
+            default -> throw new AssertionError("unknown interpretation: " + as);
+        };
     }
 
     /** Resolves dot-separated keys and {@code [index]} segments against a parsed value tree. */
