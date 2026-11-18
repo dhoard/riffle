@@ -43,9 +43,9 @@ class EOLQuotedStringsTest {
         assertThat(value("\"\"")).isEmpty();
         assertThat(value("\"\"\"")).isEqualTo("\"");
         assertThat(value("\"\"\"\"")).isEqualTo("\"\"");
-        assertThat(value("\"a # b\" # comment")).isEqualTo("a # b");
-        assertThat(value("\"a // b\" // comment")).isEqualTo("a // b");
-        assertThat(value("He said \"hello\" # comment")).isEqualTo("He said \"hello\"");
+        assertThat(value("\"a # b\"")).isEqualTo("a # b");
+        assertThat(value("\"a // b\"")).isEqualTo("a // b");
+        assertThat(value("He said \"hello\" # not a comment")).isEqualTo("He said \"hello\" # not a comment");
         assertThat(value("\"a \\n b\"")).isEqualTo("a \n b");
     }
 
@@ -66,21 +66,17 @@ class EOLQuotedStringsTest {
     }
 
     @Test
-    void theFirstValidTrailingCommentBoundaryWins() {
-        assertThat(value("\"a # b\" # comment \"text\"")).isEqualTo("a # b");
-        assertThat(value("\"a // b\" // comment \"text\"")).isEqualTo("a // b");
-        assertThat(value("\"a\" # \"b\" # c")).isEqualTo("a");
-        assertThat(value("\"a  #  b\" # note")).isEqualTo("a  #  b");
-        assertThat(value("\"https://x/y#f\" // note")).isEqualTo("https://x/y#f");
+    void theLastQuoteOnTheLineEndsTheValue() {
+        assertThat(value("\"a # b\"")).isEqualTo("a # b");
         assertThat(value("\"a\"#c\"")).isEqualTo("a\"#c");
+        assertThat(value("\"a\" \"b\"")).isEqualTo("a\" \"b");
+        assertThat(value("\"a\" # text\"")).isEqualTo("a\" # text");
     }
 
     @Test
-    void ambiguousQuoteBeforeACommentMarkerIsDocumentedAndEscapable() {
-        assertThat(value("\"a\" # text\"")).isEqualTo("a");
-        assertThat(value("\"a\" // text\"")).isEqualTo("a");
-        assertThat(value("\"a\\\" # text\"")).isEqualTo("a\" # text");
-        assertThat(value("\"a\\\" // text\"")).isEqualTo("a\" // text");
+    void textAfterTheClosingQuoteIsRejected() {
+        rejects("\"a\" # text", RiffleError.TRAILING_TOKENS);
+        rejects("\"a\" garbage", RiffleError.TRAILING_TOKENS);
     }
 
     @Test
@@ -89,7 +85,7 @@ class EOLQuotedStringsTest {
                 typed : @string "He said "hello""
                 list : [
                     "one "two""
-                    "a # b" # element comment
+                    "a # b"
                 ]
                 typedList : @string [
                     "He said \"hello\""
@@ -124,16 +120,16 @@ class EOLQuotedStringsTest {
     }
 
     @Test
-    void theCanonicalWriterEscapesQuotesThatWouldStartACommentBoundary() {
-        for (String text : new String[] {"a\" # b", "a\" // b", "a\"\" # b", "a\"\t#b"}) {
+    void interiorQuotesAndHashesRoundTripThroughTheCanonicalWriter() {
+        for (String text : new String[] {"a\" # b", "a\" // b", "a\"\" # b", "a\"\t#b", "x # y"}) {
             RiffleObject document = object(text);
             String written = Riffle.write(document);
             assertThat(Riffle.parse(written)).as(written).isEqualTo(document);
             assertThat(Riffle.write(Riffle.parse(written))).as(written).isEqualTo(written);
         }
-        assertThat(Riffle.write(object("a\" # b"))).isEqualTo("k : \"a\\\" # b\"\n");
-        assertThat(Riffle.write(object("a\"\" # b"))).isEqualTo("k : \"a\"\\\" # b\"\n");
-        assertThat(Riffle.write(object("a\"\t#b"))).isEqualTo("k : \"a\"\\t#b\"\n");
+        assertThat(Riffle.write(object("a\" # b"))).isEqualTo("k : a\" # b\n");
+        assertThat(Riffle.write(object("x # y"))).isEqualTo("k : x # y\n");
+        assertThat(Riffle.write(object("#x"))).isEqualTo("k : \"#x\"\n");
     }
 
     @Test

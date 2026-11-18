@@ -73,7 +73,7 @@ class WriterTest {
                 marker : "@int 1"
                 brace : "}"
                 hash : "# x"
-                commentish : "a # b"
+                commentish : a # b
                 newline : "a\\nb"
                 tab : "a\\tb"
                 int : @int 42
@@ -125,10 +125,10 @@ class WriterTest {
                 Arguments.of("  x  ", "\"  x  \""),
                 Arguments.of("@int 1", "\"@int 1\""),
                 Arguments.of("#x", "\"#x\""),
-                Arguments.of("//x", "\"//x\""),
+                Arguments.of("//x", "//x"),
                 Arguments.of("# x", "\"# x\""),
-                Arguments.of("a # b", "\"a # b\""),
-                Arguments.of("a // b", "\"a // b\""),
+                Arguments.of("a # b", "a # b"),
+                Arguments.of("a // b", "a // b"),
                 Arguments.of("{", "\"{\""),
                 Arguments.of("}", "\"}\""),
                 Arguments.of("[", "\"[\""),
@@ -168,7 +168,7 @@ class WriterTest {
 
     @Test
     void commentsAreNotPreserved() {
-        String withComments = "# header\nk : v # note\n\n# footer\n";
+        String withComments = "# header\nk : v\n\n# footer\n";
         assertThat(Riffle.write(Riffle.parse(withComments))).isEqualTo("k : v\n");
     }
 

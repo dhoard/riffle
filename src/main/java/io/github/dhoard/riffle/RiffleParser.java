@@ -11,8 +11,10 @@ import java.util.regex.Pattern;
  * Line-oriented parser for Riffle 0.1.0: one entry or element per line, collections on their
  * own lines, {@code @type} markers for non-string scalars. Package-private by design.
  *
- * <p>Comments are resolved at each syntactic position, so a {@code "} inside a bare value is
- * ordinary text and only a marker that follows whitespace starts a comment.</p>
+ * <p>Comments occupy whole lines: a line whose first non-whitespace character is {@code #} is a
+ * line comment, and a block-comment region is removed before parsing starts. A {@code #} after a
+ * value is therefore part of that value, so no key, value, opener, or closer can contain a comment
+ * (LANGUAGE_SPEC.md §8).</p>
  */
 final class RiffleParser {
     private static final Pattern INTEGER = Pattern.compile("-?(0|[1-9][0-9]*)");
@@ -27,6 +29,7 @@ final class RiffleParser {
         String body = !text.isEmpty() && text.charAt(0) == Syntax.BYTE_ORDER_MARK ? text.substring(1) : text;
         validateCodePoints(body);
         splitLines(body);
+        stripBlockComments();
     }
 
     RiffleObject parse() {
@@ -93,33 +96,79 @@ final class RiffleParser {
         lines.add(text.substring(start));
     }
 
-    /** Returns whether a comment marker starts at {@code index}. */
-    private static boolean isCommentAt(String line, int index) {
-        if (index >= line.length()) {
-            return false;
+    /**
+     * Removes block-comment regions (LANGUAGE_SPEC.md §8). A line whose first non-whitespace
+     * characters are {@code /#} opens a region, and anything after them on that line is comment
+     * text. A line whose first non-whitespace characters are {@code #/} and whose remaining
+     * characters are only spaces or tabs closes one nesting level. Every other line of a region is
+     * ignored, including lines that look like entries, delimiters, or invalid Riffle.
+     *
+     * <p>Region lines are replaced by empty lines rather than removed, so that every later
+     * diagnostic still reports the source's own line.</p>
+     */
+    private void stripBlockComments() {
+        int depth = 0;
+        int openerLine = -1;
+        int openerColumn = -1;
+        for (int index = 0; index < lines.size(); index++) {
+            String raw = lines.get(index);
+            int start = Syntax.firstNonWhitespace(raw, 0);
+            if (isBlockCommentOpener(raw, start)) {
+                if (depth == 0) {
+                    openerLine = index;
+                    openerColumn = start;
+                }
+                depth++;
+                lines.set(index, "");
+                continue;
+            }
+            if (depth == 0) {
+                continue;
+            }
+            if (isBlockCommentCloser(raw, start)) {
+                depth--;
+            }
+            lines.set(index, "");
         }
-        char c = line.charAt(index);
-        boolean marker = c == '#' || (c == '/' && index + 1 < line.length() && line.charAt(index + 1) == '/');
-        return marker && (index == 0 || Syntax.isHorizontalWhitespace(line.charAt(index - 1)));
+        if (depth > 0) {
+            throw error(
+                    RiffleError.UNCLOSED_COMMENT,
+                    "unclosed block comment; a line containing only '#/' is expected",
+                    openerLine,
+                    openerColumn);
+        }
     }
 
-    /** Returns the index where a comment starts at or after {@code from}, or the line length. */
-    private static int commentStart(String line, int from) {
-        for (int i = from; i < line.length(); i++) {
-            if (isCommentAt(line, i)) {
-                return i;
-            }
-        }
-        return line.length();
+    /** Returns whether a line opens a block comment: {@code /#} followed by anything. */
+    private static boolean isBlockCommentOpener(String line, int start) {
+        return start + 1 < line.length() && line.charAt(start) == '/' && line.charAt(start + 1) == '#';
+    }
+
+    /** Returns whether a line closes a block comment: {@code #/} and nothing after it but whitespace. */
+    private static boolean isBlockCommentCloser(String line, int start) {
+        return start + 1 < line.length()
+                && line.charAt(start) == '#'
+                && line.charAt(start + 1) == '/'
+                && Syntax.firstNonWhitespace(line, start + 2) >= line.length();
+    }
+
+    /**
+     * Returns whether {@code line} is a comment line: its first non-whitespace character is
+     * {@code #}. A comment occupies a whole line, so a {@code #} after a value is part of that
+     * value (LANGUAGE_SPEC.md §8.1).
+     */
+    private static boolean isCommentLine(String line) {
+        int start = Syntax.firstNonWhitespace(line, 0);
+        return start < line.length() && line.charAt(start) == '#';
     }
 
     /** Requires that an opener is the last syntactic token on its line. */
     private void openerLast(String line, int from, int lineIndex, char open, char close, String contents) {
         int i = Syntax.firstNonWhitespace(line, from);
-        if (i >= line.length() || isCommentAt(line, i)) {
+        if (i >= line.length()) {
             return;
         }
-        if (line.charAt(i) == close && onlyCommentOrEnd(line, i + 1)) {
+        if (line.charAt(i) == close && Syntax.firstNonWhitespace(line, i + 1) >= line.length()) {
             throw error(
                     RiffleError.UNSUPPORTED_INLINE_COLLECTION,
                     "an empty collection is written '" + open + close + "' with no spaces, or '" + open + "' and '"
@@ -135,19 +184,12 @@ final class RiffleParser {
                 i);
     }
 
-    /** Returns whether only an optional comment follows {@code from}. */
-    private static boolean onlyCommentOrEnd(String line, int from) {
+    /** Requires that only whitespace follows {@code from} on its line. */
+    private void onlyWhitespace(String line, int from, int lineIndex) {
         int i = Syntax.firstNonWhitespace(line, from);
-        return i >= line.length() || isCommentAt(line, i);
-    }
-
-    /** Requires that only whitespace and an optional comment follow {@code from}. */
-    private void onlyComment(String line, int from, int lineIndex) {
-        int i = Syntax.firstNonWhitespace(line, from);
-        if (i >= line.length() || isCommentAt(line, i)) {
-            return;
+        if (i < line.length()) {
+            throw error(RiffleError.TRAILING_TOKENS, "unexpected text after the value", lineIndex, i);
         }
-        throw error(RiffleError.TRAILING_TOKENS, "unexpected text after the value", lineIndex, i);
     }
 
     // ---------------------------------------------------------------- maps
@@ -158,12 +200,12 @@ final class RiffleParser {
             int index = next++;
             String raw = lines.get(index);
             int start = Syntax.firstNonWhitespace(raw, 0);
-            if (start >= raw.length() || isCommentAt(raw, start)) {
+            if (start >= raw.length() || isCommentLine(raw)) {
                 continue;
             }
             char first = raw.charAt(start);
             if (first == '}') {
-                onlyComment(raw, start + 1, index);
+                onlyWhitespace(raw, start + 1, index);
                 if (root) {
                     throw error(RiffleError.UNEXPECTED_CLOSER, "unexpected '}'", index, start);
                 }
@@ -224,12 +266,12 @@ final class RiffleParser {
             int index = next++;
             String raw = lines.get(index);
             int start = Syntax.firstNonWhitespace(raw, 0);
-            if (start >= raw.length() || isCommentAt(raw, start)) {
+            if (start >= raw.length() || isCommentLine(raw)) {
                 continue;
             }
             char first = raw.charAt(start);
             if (first == ']') {
-                onlyComment(raw, start + 1, index);
+                onlyWhitespace(raw, start + 1, index);
                 return new RiffleArray(values, path, opener);
             }
             if (first == '}') {
@@ -246,12 +288,12 @@ final class RiffleParser {
             int index = next++;
             String raw = lines.get(index);
             int start = Syntax.firstNonWhitespace(raw, 0);
-            if (start >= raw.length() || isCommentAt(raw, start)) {
+            if (start >= raw.length() || isCommentLine(raw)) {
                 continue;
             }
             char first = raw.charAt(start);
             if (first == ']') {
-                onlyComment(raw, start + 1, index);
+                onlyWhitespace(raw, start + 1, index);
                 return new RiffleArray(values, path, opener);
             }
             if (first == '}') {
@@ -270,7 +312,7 @@ final class RiffleParser {
         switch (first) {
             case '"' -> {
                 Quoted quoted = quotedValue(line, from, lineIndex);
-                onlyComment(line, quoted.end, lineIndex);
+                onlyWhitespace(line, quoted.end, lineIndex);
                 return new RiffleString(quoted.text, path, location);
             }
             case '@' -> {
@@ -278,7 +320,7 @@ final class RiffleParser {
             }
             case '{' -> {
                 if (from + 1 < line.length() && line.charAt(from + 1) == '}') {
-                    onlyComment(line, from + 2, lineIndex);
+                    onlyWhitespace(line, from + 2, lineIndex);
                     return new RiffleObject(new LinkedHashMap<>(), path, location);
                 }
                 openerLast(line, from + 1, lineIndex, '{', '}', "entries");
@@ -287,7 +329,7 @@ final class RiffleParser {
             }
             case '[' -> {
                 if (from + 1 < line.length() && line.charAt(from + 1) == ']') {
-                    onlyComment(line, from + 2, lineIndex);
+                    onlyWhitespace(line, from + 2, lineIndex);
                     return new RiffleArray(new ArrayList<>(), path, location);
                 }
                 openerLast(line, from + 1, lineIndex, '[', ']', "elements");
@@ -325,7 +367,7 @@ final class RiffleParser {
                         RiffleError.UNKNOWN_TYPE, "'@" + word + "' cannot open a typed array", lineIndex, wordStart);
             }
             if (afterWord + 1 < line.length() && line.charAt(afterWord + 1) == ']') {
-                onlyComment(line, afterWord + 2, lineIndex);
+                onlyWhitespace(line, afterWord + 2, lineIndex);
                 return new RiffleArray(new ArrayList<>(), path, location);
             }
             openerLast(line, afterWord + 1, lineIndex, '[', ']', "elements");
@@ -334,13 +376,13 @@ final class RiffleParser {
         }
         switch (word) {
             case "null" -> {
-                if (afterWord < line.length() && !isCommentAt(line, afterWord)) {
+                if (afterWord < line.length()) {
                     throw error(RiffleError.INVALID_TYPED_VALUE, "@null takes no payload", lineIndex, afterWord);
                 }
                 return new RiffleNull(path, location);
             }
             case "string" -> {
-                if (afterWord >= line.length() || isCommentAt(line, afterWord)) {
+                if (afterWord >= line.length()) {
                     throw error(
                             RiffleError.MISSING_VALUE,
                             "expected a payload after '@string'",
@@ -349,13 +391,13 @@ final class RiffleParser {
                 }
                 if (line.charAt(afterWord) == '"') {
                     Quoted quoted = quotedValue(line, afterWord, lineIndex);
-                    onlyComment(line, quoted.end, lineIndex);
+                    onlyWhitespace(line, quoted.end, lineIndex);
                     return new RiffleString(quoted.text, path, location);
                 }
                 return bareString(line, afterWord, lineIndex, path, location);
             }
             case "int", "long", "decimal", "boolean" -> {
-                int payloadEnd = Syntax.trimEnd(line.substring(0, commentStart(line, afterWord)), afterWord);
+                int payloadEnd = Syntax.trimEnd(line, afterWord);
                 if (afterWord >= payloadEnd) {
                     throw error(
                             RiffleError.MISSING_VALUE,
@@ -377,7 +419,7 @@ final class RiffleParser {
         char first = line.charAt(from);
         switch (kind) {
             case "null" -> {
-                String text = Syntax.trim(line.substring(from, commentStart(line, from)));
+                String text = line.substring(from, Syntax.trimEnd(line, from));
                 if (!text.equals("null")) {
                     throw error(
                             RiffleError.INVALID_ARRAY_ELEMENT_TYPE,
@@ -390,7 +432,7 @@ final class RiffleParser {
             case "string" -> {
                 if (first == '"') {
                     Quoted quoted = quotedValue(line, from, lineIndex);
-                    onlyComment(line, quoted.end, lineIndex);
+                    onlyWhitespace(line, quoted.end, lineIndex);
                     return new RiffleString(quoted.text, path, location);
                 }
                 if (first == '@' || first == '{' || first == '[' || first == '}' || first == ']') {
@@ -410,7 +452,7 @@ final class RiffleParser {
                             lineIndex,
                             from);
                 }
-                int payloadEnd = Syntax.trimEnd(line.substring(0, commentStart(line, from)), from);
+                int payloadEnd = Syntax.trimEnd(line, from);
                 try {
                     return scalar(kind, line.substring(from, payloadEnd), lineIndex, from, path, location);
                 } catch (RiffleParseException e) {
@@ -423,7 +465,7 @@ final class RiffleParser {
             }
             case "map" -> {
                 if (from + 1 < line.length() && line.charAt(from + 1) == '}') {
-                    onlyComment(line, from + 2, lineIndex);
+                    onlyWhitespace(line, from + 2, lineIndex);
                     return new RiffleObject(new LinkedHashMap<>(), path, location);
                 }
                 if (first == '{') {
@@ -435,7 +477,7 @@ final class RiffleParser {
             }
             case "array" -> {
                 if (from + 1 < line.length() && line.charAt(from + 1) == ']') {
-                    onlyComment(line, from + 2, lineIndex);
+                    onlyWhitespace(line, from + 2, lineIndex);
                     return new RiffleArray(new ArrayList<>(), path, location);
                 }
                 if (first == '[') {
@@ -565,7 +607,7 @@ final class RiffleParser {
     }
 
     private RiffleString bareString(String line, int from, int lineIndex, String path, RiffleLocation location) {
-        int end = Syntax.trimEnd(line.substring(0, commentStart(line, from)), from);
+        int end = Syntax.trimEnd(line, from);
         String text = line.substring(from, end);
         for (int i = 0; i < text.length(); i++) {
             if (Syntax.isControl(text.charAt(i))) {
@@ -616,26 +658,11 @@ final class RiffleParser {
     }
 
     /**
-     * Parses an EOL-delimited quoted value. The closing delimiter is the last quote before an
-     * optional valid inline comment. Comment markers are tried in source order: the first one
-     * preceded by a syntactically complete quoted body is the trailing comment, so quotes in that
-     * comment are ignored (LANGUAGE_SPEC.md §5.2). Candidates with an invalid interior are skipped
-     * so that, for example, {@code "a\" # b"} still decodes as {@code a" # b}.
+     * Parses an EOL-delimited quoted value. The closing delimiter is the last quote on the line, so
+     * interior quotes are literal data (LANGUAGE_SPEC.md §5.2). Nothing may follow the closing
+     * quote but whitespace, because a comment occupies a whole line (§8.1).
      */
     private Quoted quotedValue(String line, int start, int lineIndex) {
-        int marker = commentStart(line, start + 1);
-        while (marker < line.length()) {
-            int candidate = lastQuote(line, start + 1, marker);
-            if (candidate > start && trimmedEnd(line, start, marker) == candidate + 1) {
-                try {
-                    String text = decodeBody(line, start + 1, candidate, lineIndex);
-                    return new Quoted(text, candidate + 1);
-                } catch (RiffleParseException e) {
-                    // Not a boundary; a later comment marker may be the trailing comment.
-                }
-            }
-            marker = commentStart(line, marker + 1);
-        }
         int closing = lastQuote(line, start + 1, line.length());
         if (closing < 0) {
             throw error(RiffleError.UNTERMINATED_STRING, "unterminated quoted string", lineIndex, start);
@@ -647,15 +674,6 @@ final class RiffleParser {
     private static int lastQuote(String line, int from, int to) {
         int index = line.lastIndexOf('"', to - 1);
         return index >= from ? index : -1;
-    }
-
-    /** Returns the exclusive end of {@code [from, to)} after trailing horizontal whitespace. */
-    private static int trimmedEnd(String line, int from, int to) {
-        int i = to;
-        while (i > from && Syntax.isHorizontalWhitespace(line.charAt(i - 1))) {
-            i--;
-        }
-        return i;
     }
 
     /** Decodes the shared escape vocabulary in {@code [from, to)}; quotes in the span are literal. */

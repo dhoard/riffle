@@ -1,11 +1,14 @@
-# full line
-url : https://example.com/a#frag # trailing
+# full line comment
+   # indented comment
+#
+url : https://example.com/a#frag
 pattern : path//segment
-value : hello # comment
-count : @int 42 // trailing
-list : [ # opener
+slashes : a // b
+value : hello # part of the value
+count : @int 42
+list : [
     first
-    # inside
-    second # element
-] # closer
-empty : {} # empty
+    # inside a collection
+    second
+]
+empty : {}

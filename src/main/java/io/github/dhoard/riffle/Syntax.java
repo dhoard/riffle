@@ -77,6 +77,12 @@ final class Syntax {
             }
             default -> {}
         }
+        // A string that begins with `#` would be a comment line, and one that begins with `/#`
+        // would open a block comment, when it is written at the start of a line, which is how every
+        // array element is written (LANGUAGE_SPEC.md §8).
+        if (first == '#' || text.startsWith("/#")) {
+            return false;
+        }
         if (isHorizontalWhitespace(first) || isHorizontalWhitespace(text.charAt(text.length() - 1))) {
             return false;
         }
@@ -84,11 +90,6 @@ final class Syntax {
             char c = text.charAt(i);
             if (isControl(c) || c == BYTE_ORDER_MARK) {
                 return false;
-            }
-            if (c == '#' || (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/')) {
-                if (i == 0 || isHorizontalWhitespace(text.charAt(i - 1))) {
-                    return false;
-                }
             }
         }
         return true;
@@ -107,8 +108,9 @@ final class Syntax {
     /**
      * Returns {@code text} as a quoted string with the supported escapes. Control characters and
      * byte-order marks are escaped, because neither may appear literally in a quoted string. A
-     * value's interior quotes stay literal unless one would be read as the closing delimiter
-     * before a trailing inline comment (LANGUAGE_SPEC.md §5.2).
+     * value's interior quotes stay literal because the closing delimiter is the last quote on the
+     * line; a quoted key escapes them because a key ends at the first unescaped quote
+     * (LANGUAGE_SPEC.md §5.2).
      */
     private static String quote(String text, boolean key) {
         StringBuilder out = new StringBuilder(text.length() + 2);
@@ -116,13 +118,7 @@ final class Syntax {
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
             switch (c) {
-                case '"' -> {
-                    if (key || startsCommentAfter(text, i + 1)) {
-                        out.append("\\\"");
-                    } else {
-                        out.append('"');
-                    }
-                }
+                case '"' -> out.append(key ? "\\\"" : "\"");
                 case '\\' -> out.append("\\\\");
                 case '\n' -> out.append("\\n");
                 case '\r' -> out.append("\\r");
@@ -139,25 +135,6 @@ final class Syntax {
             }
         }
         return out.append('"').toString();
-    }
-
-    /**
-     * Returns whether a comment marker starts after a literal space immediately following
-     * {@code from}. Such a marker would make the preceding quote a candidate closing delimiter,
-     * so the writer must escape that quote instead of emitting it literally. Tabs and other control
-     * characters are emitted as escapes, so they cannot separate a quote from a comment marker in
-     * the written source.
-     */
-    private static boolean startsCommentAfter(String text, int from) {
-        int i = from;
-        while (i < text.length() && text.charAt(i) == ' ') {
-            i++;
-        }
-        if (i == from || i >= text.length()) {
-            return false;
-        }
-        char c = text.charAt(i);
-        return c == '#' || (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/');
     }
 
     /** Returns whether {@code text} contains an unpaired surrogate. */

@@ -1,6 +1,7 @@
 package io.github.dhoard.riffle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +24,18 @@ class ParserTest {
     @Test
     void emptyDocumentIsAnEmptyMap() {
         assertThat(Riffle.parse("")).isEqualTo(RiffleObject.of(Map.of()));
-        assertThat(Riffle.parse("\n\n  \n# a comment\n// another\n")).isEqualTo(RiffleObject.of(Map.of()));
+        assertThat(Riffle.parse("\n\n  \n# a comment\n")).isEqualTo(RiffleObject.of(Map.of()));
+    }
+
+    @Test
+    void onlyHashStartsALineComment() {
+        assertThat(value("k : a // b").asString()).isEqualTo("a // b");
+        assertThat(value("k : a//b").asString()).isEqualTo("a//b");
+        assertThat(value("k : // not a comment").asString()).isEqualTo("// not a comment");
+        assertThatThrownBy(() -> Riffle.parse("// not a comment\nk : v\n"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.MISSING_COLON));
     }
 
     @Test
@@ -42,13 +54,12 @@ class ParserTest {
     }
 
     @Test
-    void commentsAreFullLineOrInlineAfterWhitespace() {
+    void commentsOccupyWholeLines() {
         RiffleObject root = map("""
                 # leading
-                // leading too
                   # indented
-                k : value # inline
-                n : other // inline
+                k : value
+                n : other
                 """);
         assertThat(root.get("k").asString()).isEqualTo("value");
         assertThat(root.get("n").asString()).isEqualTo("other");
@@ -63,36 +74,64 @@ class ParserTest {
     }
 
     @Test
-    void aMarkerAfterWhitespaceStartsAComment() {
-        assertThat(value("k : hello #world").asString()).isEqualTo("hello");
-        assertThat(value("k : hello //world").asString()).isEqualTo("hello");
-        assertThat(value("k : # just a comment").asString()).isEmpty();
+    void aHashAfterAValueIsPartOfThatValue() {
+        assertThat(value("k : hello #world").asString()).isEqualTo("hello #world");
+        assertThat(value("k : hello  #  world").asString()).isEqualTo("hello  #  world");
+        assertThat(value("k : # not a comment").asString()).isEqualTo("# not a comment");
+        assertThat(value("k : a # b # c").asString()).isEqualTo("a # b # c");
     }
 
     @Test
     void markersInsideQuotesAreText() {
         assertThat(value("k : \"a # b\"").asString()).isEqualTo("a # b");
         assertThat(value("k : \"a // b\"").asString()).isEqualTo("a // b");
-        assertThat(value("k : \"a # b\" // comment").asString()).isEqualTo("a # b");
         assertThat(value("k : \"a \\\" # b\"").asString()).isEqualTo("a \" # b");
     }
 
     @Test
     void aQuoteInsideABareValueIsOrdinaryText() {
-        assertThat(value("k : a\"b # c").asString()).isEqualTo("a\"b");
-        assertThat(value("k : a\"b // c").asString()).isEqualTo("a\"b");
-        assertThat(value("k : he said \"hi\" # c").asString()).isEqualTo("he said \"hi\"");
+        assertThat(value("k : a\"b # c").asString()).isEqualTo("a\"b # c");
+        assertThat(value("k : a\"b // c").asString()).isEqualTo("a\"b // c");
+        assertThat(value("k : he said \"hi\" # c").asString()).isEqualTo("he said \"hi\" # c");
     }
 
     @Test
-    void commentsMayFollowValuesOpenersAndClosers() {
+    void aCommentCannotFollowANonBareValue() {
+        // §8.1: a comment occupies a whole line, so these lines are rejected rather than read
+        // with a trailing comment.
+        assertThatThrownBy(() -> Riffle.parse("b : \"x\" # note"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.TRAILING_TOKENS));
+        assertThatThrownBy(() -> Riffle.parse("c : [\n    2\n] # close"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.TRAILING_TOKENS));
+        assertThatThrownBy(() -> Riffle.parse("d : {} # empty"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.TRAILING_TOKENS));
+        // A typed scalar's payload is the rest of the line, so the text becomes part of it.
+        assertThatThrownBy(() -> Riffle.parse("a : @int 1 # one"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_TYPED_VALUE));
+    }
+
+    @Test
+    void commentsMayFollowValuesOpenersAndClosersOnTheirOwnLines() {
         RiffleObject root = map("""
-                a : @int 1 # one
-                b : "x" // note
-                c : [ # open
+                # one
+                a : @int 1
+                # note
+                b : "x"
+                # open
+                c : [
+                    # element
                     2
-                ] # close
-                d : {} # empty
+                ]
+                # empty
+                d : {}
                 """);
         assertThat(root.get("a").asInt()).isEqualTo(1);
         assertThat(root.get("b").asString()).isEqualTo("x");

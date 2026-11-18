@@ -1,6 +1,7 @@
 url : https://example.com/a#frag
 pattern : path//segment
-value : hello
+slashes : a // b
+value : hello # part of the value
 count : @int 42
 list : [
     first

@@ -9,12 +9,15 @@
 # around whole lines.
 #
 # The rules follow the specification's less obvious corners:
-#   * `#` and `//` start a comment only at the start of a line or after
-#     whitespace, so `https://example.org/a#fragment` and `path//segment` stay
+#   * Comments occupy whole lines: `#` starts a line comment only as the first
+#     non-whitespace character of a line, and a line holding `/#` opens a
+#     nestable block comment that a line holding only `#/` closes. A `#` after
+#     a value is data, and `//` is never a comment marker, so
+#     `https://example.org/a#fragment`, `path//segment` and `k : v # data` stay
 #     bare strings.
-#   * A quoted *value* is delimited by the last quote that leaves only
-#     whitespace or an inline comment before the end of the line, so
-#     `"He said "hello""` is one string containing quotes.
+#   * A quoted *value* is delimited by the last quote on its line, so
+#     `"He said "hello""` is one string containing quotes, and nothing but
+#     whitespace may follow the closing quote.
 #   * A quoted *key* ends at the first unescaped quote, because a key ends at
 #     `:` rather than at the end of the line.
 #
@@ -27,16 +30,15 @@ scope: source.riffle
 version: 2
 
 variables:
-  # Whitespace, an optional inline comment, and the end of the line.
-  eol: '[ \t]*(?:(?:#|//).*)?$'
-  # A bare value: runs to the end of the line and ends at whitespace that is
-  # followed by a comment marker.
-  bare_string: '\S(?:.*?)(?=[ \t]+(?:#|//)|[ \t]*$)'
+  # Whitespace and the end of the line. A comment cannot follow a value.
+  eol: '[ \t]*$'
+  # A bare value: runs to the end of the line, trailing whitespace excluded.
+  bare_string: '\S(?:.*\S)?'
   integer: '-?(?:0|[1-9][0-9]*)'
   decimal: '-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?'
   # After `@type [`, either the line ends (block form) or an immediately
   # closing `]` ends it (inline empty form); `@type [ ]` is invalid.
-  typed_array_open: '(?:\](?:[ \t]*(?:(?:#|//).*)?)?|[ \t]*(?:(?:#|//).*)?)$'
+  typed_array_open: '(?:\][ \t]*|[ \t]*)$'
 
 contexts:
   # The document root is an implicit map: every line is a map entry, a blank
@@ -70,7 +72,6 @@ contexts:
     - match: '^([ \t]*)({{bare_string}})'
       captures:
         2: invalid.illegal.missing-colon.riffle
-    - include: inline-comment
     - include: value-start
 
   map-entry:
@@ -98,25 +99,28 @@ contexts:
       captures:
         2: invalid.illegal.mismatched-closer.riffle
     - include: comments
-    - include: inline-comment
     - include: value-start
 
+  # A comment occupies a whole line. `#` at the start of a line is a line
+  # comment; `/#` at the start of a line opens a block comment region.
   comments:
     - match: '^([ \t]*)(#.*)$'
       captures:
         2: comment.line.number-sign.riffle
-    - match: '^([ \t]*)(//.*)$'
+    - match: '^([ \t]*)(/#.*)$'
       captures:
-        2: comment.line.double-slash.riffle
+        2: comment.block.riffle
+      push: block-comment
 
-  # `#` and `//` start a comment only when whitespace precedes them. Without
-  # that whitespace a marker is part of a bare value, which is why the value
-  # rules consume it first.
-  inline-comment:
-    - match: '(?<=[ \t])(#.*)$'
-      scope: comment.line.number-sign.riffle
-    - match: '(?<=[ \t])(//.*)$'
-      scope: comment.line.double-slash.riffle
+  # Everything between a `/#` line and the matching `#/` line is comment text,
+  # including entries, delimiters and other markers. Regions nest, so the
+  # opener pushes the context again.
+  block-comment:
+    - meta_scope: comment.block.riffle
+    - match: '^([ \t]*)(/#)'
+      push: block-comment
+    - match: '^([ \t]*)(#/)[ \t]*$'
+      pop: true
 
   # A value beginning at the current position: a scalar, a collection, or a
   # typed array. Block openers must be the last token of the line.
@@ -269,7 +273,6 @@ contexts:
   # start of the line so that `@type []` can close on the opener line.
   typed-array-common:
     - include: comments
-    - include: inline-comment
     - match: '\]'
       scope: punctuation.section.array.end.riffle
       pop: true
@@ -357,10 +360,10 @@ contexts:
     - match: '\S(?:.*?)(?={{eol}})'
       scope: invalid.illegal.array-element.riffle
 
-  # Interior of a quoted value. The closing delimiter is the first quote that
-  # is followed by nothing but whitespace and an optional inline comment;
-  # every other quote is literal data, which is how `"He said "hello""` and
-  # `"a # b" # trailing` are read.
+  # Interior of a quoted value. The closing delimiter is the quote that is
+  # followed by nothing but whitespace, which is the last quote on the line and
+  # is why every earlier quote is literal data: `"He said "hello""` is one
+  # string containing quotes, and `"a # b"` has the value `a # b`.
   quoted-value-body:
     - meta_scope: string.quoted.double.riffle
     - match: '"(?={{eol}})'

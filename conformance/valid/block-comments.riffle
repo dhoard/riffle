@@ -1,0 +1,30 @@
+# line comments and block comment regions
+/#
+temporarily disabled: an unbalanced opener, a duplicate key, and a bad number
+service : {
+service : {
+weight : @int not-a-number
+#
+nested : {}
+# a line comment marker is text inside a region
+#/
+name : keeper
+
+service : {
+    # region inside a map body
+    /#
+    host : placeholder
+    port : @int 8080
+    #/
+    host : real
+}
+
+values : [
+    first
+    /#
+    second
+    #/ text after the closer keeps the region open
+    third
+    #/
+    fourth
+]

@@ -52,6 +52,11 @@ class SpecConformanceTest {
                 80
                 443
             ]
+
+            # block comment region: whole lines are ignored until the matching `#/`
+            /#
+            disabled : @int 1
+            #/
             """;
 
     @Test
@@ -80,6 +85,7 @@ class SpecConformanceTest {
         assertThat(root.get("ports").asArray().values())
                 .extracting(RiffleValue::asInt)
                 .containsExactly(80, 443);
+        assertThat(root.entries()).doesNotContainKey("disabled");
     }
 
     @Test
@@ -113,6 +119,7 @@ class SpecConformanceTest {
                 Arguments.of("x : \"abc", RiffleError.UNTERMINATED_STRING),
                 Arguments.of("x : \"bad\\q\"", RiffleError.INVALID_ESCAPE),
                 Arguments.of("x : {\n y : z", RiffleError.UNCLOSED_COLLECTION),
+                Arguments.of("/#\nx : y", RiffleError.UNCLOSED_COMMENT),
                 Arguments.of("x : {} y : 2", RiffleError.TRAILING_TOKENS));
     }
 
@@ -132,10 +139,10 @@ class SpecConformanceTest {
                 escaped : "He said \\"hello\\""
                 padded : "  padded  "
                 quotes : ""quoted""
-                hash : "a # b" # comment "text"
-                slashes : "a // b" // comment "text"
-                commentAsData : "a\\" # text"
-                bare : He said "hello" # trailing comment
+                hash : "a # b"
+                slashes : "a // b"
+                interiorQuote : "a\\" # text"
+                bare : He said "hello" # not a comment
                 backslash : "line \\\\n"
                 newline : "line \\n"
                 """);
@@ -145,11 +152,19 @@ class SpecConformanceTest {
         assertThat(root.get("quotes").asString()).isEqualTo("\"quoted\"");
         assertThat(root.get("hash").asString()).isEqualTo("a # b");
         assertThat(root.get("slashes").asString()).isEqualTo("a // b");
-        assertThat(root.get("commentAsData").asString()).isEqualTo("a\" # text");
-        assertThat(root.get("bare").asString()).isEqualTo("He said \"hello\"");
+        assertThat(root.get("interiorQuote").asString()).isEqualTo("a\" # text");
+        assertThat(root.get("bare").asString()).isEqualTo("He said \"hello\" # not a comment");
         assertThat(root.get("backslash").asString()).isEqualTo("line \\n");
         assertThat(root.get("newline").asString()).isEqualTo("line \n");
         assertThat(Riffle.write(root)).isEqualTo(Riffle.write(Riffle.parse(Riffle.write(root))));
+    }
+
+    @Test
+    void textAfterACompleteValueIsRejectedBecauseCommentsAreWholeLines() {
+        assertThatThrownBy(() -> Riffle.parse("k : \"a\" # comment"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.TRAILING_TOKENS));
     }
 
     @Test

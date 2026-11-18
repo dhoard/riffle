@@ -20,6 +20,7 @@ Core properties:
 - An array contains one element per logical line, except that a collection element spans its own block.
 - `{` and `}` delimit maps; `[` and `]` delimit arrays; indentation has no syntactic significance.
 - No commas or semicolons delimit entries. A **newline**, not whitespace alone, terminates each entry.
+- `#` starts a line comment as the first non-whitespace character of a line; `//` is ordinary text. A line holding `/#` and a line holding `#/` delimit a nestable block comment region. Comments occupy whole lines and are never part of a value (§8).
 - String is the default scalar type. Every non-string scalar has an explicit `@type` marker.
 - An untyped array can contain values of different kinds. A typed array (`@type [`) supplies the kind for each immediate element.
 - Keys are always strings; they are never typed.
@@ -121,9 +122,9 @@ Source locations, key paths, comments, original quoting, and original typed-arra
 2. Line endings MAY be LF (`\n`) or CRLF (`\r\n`). A lone CR (`\r`) is invalid. The final line MAY omit its line terminator.
 3. Spaces (`U+0020`) and horizontal tabs (`U+0009`) are indentation and horizontal separators. They are not significant outside quoted strings except where a separator is required.
 4. Blank lines and comment-only lines are ignored, including inside collections.
-5. An entry or close delimiter MUST terminate at EOL, optionally followed by a valid inline comment. No two map members or array elements may occur on the same line.
+5. An entry or close delimiter MUST terminate at EOL, followed only by optional horizontal whitespace. No two map members or array elements may occur on the same line.
 6. A `{`, `[`, or `@type [` opening block MUST be the last syntactic token on its line. Its contents begin on following lines. An empty collection MAY be written inline as `{}`, `[]`, or `@type []`, or as an empty block (`{` then `}` on separate lines, likewise `[` and `]`); the canonical serializer writes the inline form (§11). Interior whitespace inside an inline empty collection (`{ }`, `[ ]`, `@type [ ]`) is invalid.
-7. A nonempty block's `}` or `]` MUST be on its own line, apart from indentation and an optional inline comment. An implementation SHOULD report a nonempty inline collection with a diagnostic that names the block form and points at the first content token. An empty collection written with interior whitespace is likewise invalid; the diagnostic SHOULD name `{}`, `[]`, or `@type []` rather than describe the collection as nonempty.
+7. A nonempty block's `}` or `]` MUST be on its own line, apart from indentation and trailing whitespace. An implementation SHOULD report a nonempty inline collection with a diagnostic that names the block form and points at the first content token. An empty collection written with interior whitespace is likewise invalid; the diagnostic SHOULD name `{}`, `[]`, or `@type []` rather than describe the collection as nonempty.
 8. Strings MUST NOT span physical lines in version 0.1.0. There is no continuation character or multiline-string syntax.
 
 ## 5. Scalar values
@@ -143,19 +144,17 @@ name : null
 blank :
 ```
 
-The first non-whitespace character of a **bare value or array element** MUST NOT be `@`, `{`, `[`, `}`, `]`, or `"` (these characters are syntactically reserved at that position). Quote strings that begin with them. These characters MAY appear later within a bare string, subject to the comment rules. A bare value consisting of `}` or `]` is always a closing delimiter when it appears alone on a collection line.
+The first non-whitespace character of a **bare value or array element** MUST NOT be `@`, `{`, `[`, `}`, `]`, or `"` (these characters are syntactically reserved at that position). Quote strings that begin with them. These characters MAY appear later within a bare string. A `#` after the first character is data: comments occupy whole lines (§8.1), so `key : hello # not a comment` is the string `hello # not a comment`. A bare value consisting of `}` or `]` is always a closing delimiter when it appears alone on a collection line.
 
 A bare string MUST NOT contain an unescaped ASCII control character (`U+0000`–`U+001F` or `U+007F`) or a literal `U+FEFF`. Backslashes in bare strings are ordinary literal characters; there are no bare-string escapes. Quoting is the escape hatch.
 
 ### 5.2 Quoted strings
 
-A double-quoted string is allowed anywhere a string value or key is allowed. Its first and last non-whitespace syntactic characters are `"`. It MUST have no trailing characters other than whitespace or a valid inline comment.
+A double-quoted string is allowed anywhere a string value or key is allowed. Its first and last non-whitespace syntactic characters are `"`. It MUST have no trailing characters other than whitespace.
 
-**Quoted values** (ordinary values, `@string` payloads, and elements of untyped or `@string` arrays) are EOL-delimited. The opening delimiter is the first `"` of the value fragment. The closing delimiter is the **last `"` of that fragment**, before optional trailing horizontal whitespace and an optional valid inline comment (comment precedence below). Every `"` inside the two delimiters is literal data, whether written literally or as `\"`; both spellings decode to the same quote character. The closing delimiter is a delimiter even when the immediately preceding character is a backslash, so `x : "abc\"` has a closing quote but an unfinished interior escape and is `INVALID_ESCAPE`. To end a value with a literal quote, write `x : "abc\""` or `x : "abc""`. A quoted value with no closing delimiter on its physical line is `UNTERMINATED_STRING`; escape validation applies only to the interior span.
+**Quoted values** (ordinary values, `@string` payloads, and elements of untyped or `@string` arrays) are EOL-delimited. The opening delimiter is the first `"` of the value fragment. The closing delimiter is the **last `"` of that fragment**, before optional trailing horizontal whitespace. Every `"` inside the two delimiters is literal data, whether written literally or as `\"`; both spellings decode to the same quote character. The closing delimiter is a delimiter even when the immediately preceding character is a backslash, so `x : "abc\"` has a closing quote but an unfinished interior escape and is `INVALID_ESCAPE`. To end a value with a literal quote, write `x : "abc\""` or `x : "abc""`. A quoted value with no closing delimiter on its physical line is `UNTERMINATED_STRING`; escape validation applies only to the interior span. Anything after the closing delimiter other than horizontal whitespace is `TRAILING_TOKENS`, because a comment occupies a whole line (§8.1): `x : "a" # comment` is rejected rather than read as `a`.
 
-**Comment precedence for quoted values.** Scan the value's line from left to right for positions where an inline comment marker (`#` or `//`) is syntactically valid (marker at the start of the line or preceded by whitespace). The **first** such position whose preceding text, after trimming trailing horizontal whitespace, ends in a `"` and whose interior span decodes without error is the trailing comment; that `"` is the closing delimiter and quotes inside the excluded comment are ignored. If no position qualifies, the closing delimiter is the last `"` on the line. This rule gives a valid trailing-comment boundary priority over a later quote, so `k : "a # b" # comment "text"` has value `a # b`. It also makes a quoted body ending in `" # text` or `" // text` intentionally ambiguous: `k : "a" # text"` is read as value `a` followed by comment `# text"`. Use `\"` for that interior quote when the text is data: `k : "a\" # text"` has value `a" # text`. If no comment is selected, anything after the closing delimiter other than horizontal whitespace or a valid comment is `TRAILING_TOKENS`.
-
-**Quoted keys are different and unchanged.** A key terminates at `:` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`. The EOL/last-quote rule and the comment precedence rule above apply only to values, not to keys.
+**Quoted keys are different.** A key terminates at `:` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`.
 
 Supported escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f`, and `\uXXXX` (four ASCII hexadecimal digits). A `\uXXXX` escape denotes the code point with that value. An escape for a high surrogate MUST be immediately followed by an escape for a low surrogate; the pair denotes the corresponding supplementary code point. An isolated surrogate escape MUST be rejected with `INVALID_ESCAPE`. Invalid escape sequences and unclosed quotes MUST fail. Literal newlines, literal carriage returns, other unescaped control characters, and literal `U+FEFF` inside quoted strings are invalid; use `\uFEFF` for the last.
 
@@ -312,31 +311,59 @@ Every opener MUST have a matching closer of the same kind. The parser MUST rejec
 
 ## 8. Comments
 
-Two line-comment markers are supported: `#` and `//`.
+Two comment forms are supported, and both occupy whole lines: **line comments**, marked with `#`, and **block comments**, which delimit a region of whole lines with `/#` and `#/`. `#` is the only line-comment marker, `//` is ordinary text, and a comment never appears after a value.
 
-- A full-line comment begins after optional indentation with `#` or `//`.
-- An inline comment starts only when `#` or `//` is preceded by at least one ASCII space or tab and is outside a quoted string.
-- When no separating whitespace precedes a marker, it remains part of a bare string, including in `https://` URLs and `path#fragment`.
-- A `"` opens a quoted string only as the first character of a key or of a value. Elsewhere it is ordinary text, so in `k : he said "hi" # c` the marker starts a comment and the value is `he said "hi"`. For quoted values the closing delimiter and the first valid trailing-comment boundary are selected by the precedence rule in §5.2; quotes in the excluded comment are data of the comment, not of the value.
-- The characters following a comment marker up to the line ending are ignored.
-- Comments MAY follow entries, collection openers, and collection closers.
+### 8.1 Line comments
+
+- A line comment occupies a whole line: a line whose first non-whitespace character is `#` is a comment, and every character on it is ignored.
+- A `#` that is not the first non-whitespace character of a line is ordinary text. `key : hello #world` is the string `hello #world`, `url : https://example.org/a#fragment` keeps its fragment, and `path//segment` and `a // b` are bare strings.
+- Because `#` is data inside a line, a quoted string that is the first non-whitespace token of a line must be quoted when it represents a value beginning with `#`; the key half of an entry is unaffected, because a line begins with the key.
+- Text after a complete non-bare value is `TRAILING_TOKENS`: `k : "v" # note` and `k : {} # note` are rejected rather than read as a value with a comment.
+- A line comment ends at the line ending: it does not open or close a block comment, and a `#` on a comment line is not a marker.
+
+### 8.2 Block comments
+
+A block comment is a region of whole lines. Its delimiters are lines, not tokens inside a line, so a block comment never forms part of a key, value, opener, or closer.
+
+- A block comment **opens** on a line whose first non-whitespace characters are `/#`. Everything after those characters on that line is comment text.
+- It **closes one level** on a line whose first non-whitespace characters are `#/` and whose remaining characters are only spaces or tabs. A line whose `#/` is followed by any other character is comment text; it does not close the comment.
+- Block comments **nest**. Every opening line inside an open block comment opens another level and every closing line closes one; the region ends when the nesting level returns to zero. Each level requires its own closing line.
+- Inside a block comment every line is ignored, including lines that look like entries, collection delimiters, line comments, or invalid Riffle. Keys, values, elements, delimiters, quotes, and comment markers are not recognized there, and a document is never rejected for text inside a region.
+- Document text outside a block comment keeps its usual meaning. A `/#` or `#/` that is not on a line of its own is ordinary text: in `k : value /# note #/` the whole fragment after the colon is the bare string `value /# note #/`. Inline block comments do not exist, and a block comment cannot follow a value.
+- A block comment that is still open at the end of the document MUST be rejected with `UNCLOSED_COMMENT`, reported at the location of the outermost open `/#`.
+- A leading `#/` line with no open block comment is an ordinary line comment, because `#` starts a line comment as the first character of a line.
+- Because a bare string that begins with `/#` cannot be written at the start of a line, the canonical serializer quotes it (§11.2).
 
 ```riffle
 # configuration
+/#
+disabled until the port allocation lands
+handler : {
+#
+nested regions need their own closer
+/#
+inner : @int 1
+#/
+#/
 url : https://example.com/a#frag
 pattern : path//segment
-name : hello # comment
-port : @int 8080 // comment
-servers : [ # comment
-    first
-] # comment
+slashes : a // b
+name : hello # this is the value, not a comment
+port : @int 8080
+servers : [
+    /#
+    second
+    #/ text after the closer keeps the region open
+    #/
+    third
+]
 ```
 
 Important: `name : hello #world` has string value `"hello"`; quote it as `"hello #world"` if the entire text is intended. `name : hello#world` remains a bare string as written.
 
 ## 9. Formal line-oriented grammar
 
-This grammar describes the syntactic structure after splitting the UTF-8 input into physical lines and removing allowed comments. It is intentionally line-oriented rather than pretending the language is whitespace-delimited. `EOL` is LF, CRLF, or end-of-file, as appropriate. `S` is zero or more spaces/tabs; `H` is one or more spaces/tabs. Additional lexical and semantic constraints in §§3–8 are normative.
+This grammar describes the syntactic structure after splitting the UTF-8 input into physical lines, removing block-comment regions (§8.2), and removing allowed line comments (§8.1). It is intentionally line-oriented rather than pretending the language is whitespace-delimited. `EOL` is LF, CRLF, or end-of-file, as appropriate. `S` is zero or more spaces/tabs; `H` is one or more spaces/tabs. Additional lexical and semantic constraints in §§3–8 are normative.
 
 ```ebnf
 Document         = { BlankOrComment | MapEntryLine } ;
@@ -388,8 +415,9 @@ H                 = ( " " | TAB ), S ;
 A conforming parser can be implemented as a line scanner plus a stack:
 
 1. Decode UTF-8, normalize CRLF to LF for line scanning, and track original line/column positions.
-2. Start with a root map context.
-3. For each line, identify comments without treating markers inside quotes or adjacent to unquoted non-whitespace characters as comments; skip empty/comment-only lines.
+2. Remove block-comment regions (§8.2) by scanning for opening and closing lines and counting nesting depth; an unclosed region fails with `UNCLOSED_COMMENT`. Later steps never see a block-comment line.
+3. Start with a root map context.
+4. For each remaining line, skip blank and comment lines; a comment line is one whose first non-whitespace character is `#` (§8.1).
 4. In a map context, parse one key, `:`, then a single value start; in an array context, parse one element value start; in a typed-array context, parse an element according to its declared kind.
 5. If the value starts a nonempty block, insert its collection node at that position and push its map/array context. Do not complete the parent entry a second time when closing the block.
 6. On a standalone matching closer, pop the current context. Reject mismatched and root-level closers.
@@ -414,7 +442,7 @@ The following categories and their triggering conditions are normative:
 | `INVALID_KEY` | A map key is neither a bare key nor a valid quoted key |
 | `MISSING_COLON` | A map entry has no `:`, or a key is not followed by one |
 | `MISSING_VALUE` | A typed value has no payload |
-| `TRAILING_TOKENS` | Noncomment characters remain after a complete value or closer |
+| `TRAILING_TOKENS` | Characters remain after a complete value or closer, other than horizontal whitespace |
 | `INVALID_VALUE` | A bare value starts with a reserved character |
 | `UNKNOWN_TYPE` | A type marker names a type that does not exist |
 | `INVALID_TYPED_VALUE` | A typed value or type marker has the wrong form |
@@ -424,6 +452,7 @@ The following categories and their triggering conditions are normative:
 | `UNEXPECTED_CLOSER` | A closing delimiter has no open collection |
 | `MISMATCHED_CLOSER` | A closing delimiter does not match the open collection |
 | `UNCLOSED_COLLECTION` | The document ended inside a collection |
+| `UNCLOSED_COMMENT` | The document ended inside a block comment; reported at the outermost unclosed `/#` |
 | `UNSUPPORTED_INLINE_COLLECTION` | A nonempty collection was written inline, or an empty collection had interior whitespace |
 | `RESOURCE_LIMIT_EXCEEDED` | The nesting limit in §12 was exceeded |
 
@@ -448,7 +477,7 @@ Canonical output bytes MUST be:
 - A map root emits one `key : value` line per entry in insertion order, with exactly one space before and one space after the colon.
 - An array emits one element per line in element order.
 - `{}` and `[]` are emitted for empty collections; nonempty collections use multiline block syntax.
-- Bare strings and bare keys are emitted only when they can be parsed back to the same string without ambiguity. Otherwise the serializer emits a quoted string using exactly the escapes in §5.2. A quoted **value** emits interior `"` literally, except where a literal quote immediately followed by a literal space and a comment marker would become a closing delimiter under §5.2; that quote is emitted as `\"` instead. Tabs and other control characters are emitted as escapes and therefore cannot form that boundary. Quoted **keys** keep emitting interior quotes as `\"`.
+- Bare strings and bare keys are emitted only when they can be parsed back to the same string without ambiguity. Otherwise the serializer emits a quoted string using exactly the escapes in §5.2. A quoted **value** emits interior `"` literally, because the closing delimiter is the last quote on the line; quoted **keys** escape interior quotes as `\"`. A string that begins with `#` is emitted quoted, and one that begins with `/#` is emitted quoted too, because an array element is written at the start of its line, where those characters would form a comment line or a block comment (§8).
 - A non-string scalar is emitted with `@int`, `@long`, `@decimal`, `@boolean`, or `@null`; strings are emitted without a marker unless the original string was explicitly typed (which has no semantic effect).
 - Every literal `U+FEFF` in a key or string is emitted as `\uFEFF`.
 - Typed arrays are emitted as ordinary arrays whose non-string elements carry explicit `@type` markers. Element order and kind are preserved; the original `@T [` annotation is not.
@@ -560,9 +589,14 @@ ports : @int [
     80
     443
 ]
+
+# block comment region: whole lines are ignored until the matching `#/`
+/#
+disabled : @int 1
+#/
 ```
 
-Expected notable distinctions: `stringTrue` is a string, not a boolean; `stringNull` is a string, not null; `empty` is `""`; `emptyInts` is an empty ordinary array. Typed arrays in these examples are authoring sugar; the canonical serializer writes untyped arrays with `@type` elements.
+Expected notable distinctions: `stringTrue` is a string, not a boolean; `stringNull` is a string, not null; `empty` is `""`; `emptyInts` is an empty ordinary array; `disabled` is absent, because a block-comment region removes whole lines (§8.2). Typed arrays in these examples are authoring sugar; the canonical serializer writes untyped arrays with `@type` elements.
 
 ### 14.2 Invalid cases (each snippet is a separate document)
 
@@ -590,10 +624,13 @@ Expected notable distinctions: `stringTrue` is a string, not a boolean; `stringN
 | `x : "abc` | Unterminated string |
 | `x : "bad\\q"` | Invalid escape |
 | `x : {\n y : z` | Unclosed map at EOF |
+| `/#\n x : y` | Unclosed block comment at EOF; text inside the region is never parsed |
+| `x : "a" # comment` | Text after a complete value; a comment cannot follow a value (§8.1) |
+| `x : {} # comment` | Text after a closer; a comment cannot follow a value (§8.1) |
 
 ### 14.3 Required test categories
 
-Implementations SHOULD include table-driven tests covering UTF-8 and Unicode escapes; LF/CRLF/EOF; comments and URL fragments; all scalar kinds and numeric boundaries; bare versus quoted strings; empty and nested collections; mixed and typed arrays; order preservation; duplicate keys; delimiter mismatch; extra same-line tokens; accurate line/column errors; serializer/parser semantic round trips; and resource-limit failures.
+Implementations SHOULD include table-driven tests covering UTF-8 and Unicode escapes; LF/CRLF/EOF; line and block comments and URL fragments; all scalar kinds and numeric boundaries; bare versus quoted strings; empty and nested collections; mixed and typed arrays; order preservation; duplicate keys; delimiter mismatch; extra same-line tokens; accurate line/column errors; serializer/parser semantic round trips; and resource-limit failures.
 
 ## 15. Non-goals for 0.1.0
 
@@ -604,6 +641,9 @@ The following are deliberately excluded:
 - Mixed values in a typed array, optional or nullable typed elements (use an untyped array with `@null` for that).
 - Multi-entry lines, comma-delimited arrays, semicolon terminators, and nonempty inline collections.
 - Multiline strings, heredocs, and line continuations.
+- Inline block comments: a block-comment region occupies whole lines and never appears inside a logical line (§8.2).
+- Alternate line-comment markers such as `//`, which is ordinary text (§8.1).
+- Inline or trailing comments of any kind: a comment occupies a whole line, so `k : v # note` gives the string `v # note` and `k : "v" # note` is rejected (§8.1).
 - Type unions, generic element kinds, typed nested-array propagation, schemas, or validation beyond syntax and declared element kind.
 - Dot-path assignment semantics, duplicate-key merging, substitution, includes, environment expansion, expressions, and conditionals.
 - A single unified integer kind; `int` and `long` remain distinct.

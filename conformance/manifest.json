@@ -108,11 +108,6 @@
           "value": "a // b"
         },
         {
-          "path": "ambiguousBoundary",
-          "kind": "string",
-          "value": "a"
-        },
-        {
           "path": "escapedBoundary",
           "kind": "string",
           "value": "a\" # text"
@@ -367,9 +362,14 @@
           "value": "path//segment"
         },
         {
+          "path": "slashes",
+          "kind": "string",
+          "value": "a // b"
+        },
+        {
           "path": "value",
           "kind": "string",
-          "value": "hello"
+          "value": "hello # part of the value"
         },
         {
           "path": "count",
@@ -384,6 +384,38 @@
         {
           "path": "empty",
           "kind": "map"
+        }
+      ]
+    },
+    {
+      "id": "valid.block-comments",
+      "expectation": "valid",
+      "input": "valid/block-comments.riffle",
+      "expectedCanonical": "canonical/block-comments-expected.riffle",
+      "semantics": [
+        {
+          "path": "name",
+          "kind": "string",
+          "value": "keeper"
+        },
+        {
+          "path": "service.host",
+          "kind": "string",
+          "value": "real"
+        },
+        {
+          "path": "service.port",
+          "kind": "missing"
+        },
+        {
+          "path": "values[0]",
+          "kind": "string",
+          "value": "first"
+        },
+        {
+          "path": "values[1]",
+          "kind": "string",
+          "value": "fourth"
         }
       ]
     },
@@ -695,6 +727,12 @@
       "expectation": "invalid",
       "input": "invalid/dangling-escape-before-boundary.riffle",
       "errorCategory": "INVALID_ESCAPE"
+    },
+    {
+      "id": "invalid.unclosed-block-comment",
+      "expectation": "invalid",
+      "input": "invalid/unclosed-comment.riffle",
+      "errorCategory": "UNCLOSED_COMMENT"
     }
   ]
 }

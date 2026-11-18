@@ -37,12 +37,16 @@ definition can be edited in place.
 The definition follows the specification rather than a generic
 key/value grammar, so these cases behave as the language defines them:
 
-- `#` and `//` start a comment only at the start of a line or after a space or
-  tab. `url : https://example.org/a#fragment` and `pattern : path//segment`
-  are bare strings, and `hashed : hello#world # real comment` mixes both.
-- A quoted value is closed by the last quote that leaves only whitespace or a
-  comment before the end of the line, so `"He said "hello""` contains quotes
-  and `"a # b" # trailing` has the value `a # b`.
+- Comments occupy whole lines. `#` is a comment only as the first
+  non-whitespace character of a line, so `url : https://example.org/a#fragment`,
+  `pattern : path//segment` and `hashed : hello#world # data` are all bare
+  strings. `//` is never a comment marker.
+- A line holding `/#` opens a block comment region and a line holding only
+  `#/` closes one nesting level; everything between, including entries and
+  invalid Riffle, is `comment.block.riffle`.
+- A quoted value is closed by the last quote on its line, so
+  `"He said "hello""` contains quotes, and a value cannot be followed by a
+  comment: `"a # b"` is the value `a # b`, while `"a" # trailing` is invalid.
 - A quoted key ends at the first unescaped quote, because a key ends at `:`.
 - Nonempty collections are only accepted in block form, an opener must end its
   line, and a closer must be alone on its line. The inline forms `{ }`,
@@ -75,7 +79,8 @@ The root scope is `source.riffle`. Theme authors can rely on:
 | `@null`, and `null` inside `@null [` | `constant.language.null.riffle` |
 | `{` `}` | `punctuation.section.mapping.begin` / `.end.riffle` |
 | `[` `]` | `punctuation.section.array.begin` / `.end.riffle` |
-| comment | `comment.line.number-sign` / `comment.line.double-slash.riffle` |
+| line comment | `comment.line.number-sign.riffle` |
+| block comment region, including its delimiters | `comment.block.riffle` |
 | invalid input | `invalid.illegal.*.riffle` |
 
 ## Limits

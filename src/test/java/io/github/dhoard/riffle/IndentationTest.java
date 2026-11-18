@@ -133,7 +133,7 @@ class IndentationTest {
 
     @Test
     void indentationInsideACommentIsIrrelevant() {
-        assertThat(Riffle.parse("  # a\n\t// b\n\nk : v\n")).isEqualTo(Riffle.parse("k : v\n"));
+        assertThat(Riffle.parse("  # a\n\t# b\n\nk : v\n")).isEqualTo(Riffle.parse("k : v\n"));
     }
 
     @Test

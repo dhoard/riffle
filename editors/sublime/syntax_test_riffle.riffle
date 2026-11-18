@@ -31,12 +31,8 @@ literal : @string @int 123
 # a comment line
 # ^^^^^^^^^^^^^^ comment.line.number-sign.riffle
 
-// another comment
-#  ^^^^^^^^^^^^^^^ comment.line.double-slash.riffle
-
-slashed : value // trailing
-#         ^^^^^ string.unquoted.riffle
-#               ^^^^^^^^^^^ comment.line.double-slash.riffle
+slashed : value // not a comment
+#         ^^^^^^^^^^^^^^^^^^^^ string.unquoted.riffle
 
 url : https://example.org/a#fragment
 #     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ string.unquoted.riffle
@@ -44,9 +40,8 @@ url : https://example.org/a#fragment
 pattern : path//segment
 #         ^^^^^^^^^^^^^ string.unquoted.riffle
 
-hashed : hello#world # real comment
-#        ^^^^^^^^^^^ string.unquoted.riffle
-#                    ^^^^^^^^^^^^^^ comment.line.number-sign.riffle
+hashed : hello#world # also data
+#        ^^^^^^^^^^^^^^^^^^^^^ string.unquoted.riffle
 
 quoted : "He said "hello""
 #        ^ punctuation.definition.string.begin.riffle
@@ -55,9 +50,10 @@ quoted : "He said "hello""
 #                  ^^^^^ string.quoted.double.riffle
 #                        ^ punctuation.definition.string.end.riffle
 
-hashComment : "a # b" # trailing
+hashComment : "a # b"
+#             ^ punctuation.definition.string.begin.riffle
 #              ^^^^^ string.quoted.double.riffle
-#                     ^^^^^^^^^^ comment.line.number-sign.riffle
+#                   ^ punctuation.definition.string.end.riffle
 
 escaped : "tab\t unicode\u263A bad\q"
 #             ^^ constant.character.escape.riffle
@@ -91,10 +87,9 @@ capabilities : {
     nested : {
 #            ^ punctuation.section.mapping.begin.riffle
 
-        port : @int 8080   # comment
-#               ^^^ storage.type.numeric.int.riffle
-#                   ^^^^ constant.numeric.integer.int.riffle
-#                          ^^^^^^^^^ comment.line.number-sign.riffle
+        port : @int 8080
+#              ^^^ storage.type.numeric.int.riffle
+#                  ^^^^ constant.numeric.integer.int.riffle
 
     }
 #   ^ punctuation.section.mapping.end.riffle
@@ -109,9 +104,8 @@ capabilities : {
     ]
 #   ^ punctuation.section.array.end.riffle
 
-    values : [ # opener comment
+    values : [
 #            ^ punctuation.section.array.begin.riffle
-#              ^^^^^^^^^^^^^^^^ comment.line.number-sign.riffle
 
         @null
 #        ^^^^ constant.language.null.riffle
@@ -138,3 +132,21 @@ bad : @float 1.0
 
 inline : [ one ]
 #        ^ invalid.illegal.unsupported-inline-collection.riffle
+
+# block comment regions occupy whole lines and nest
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.line.number-sign.riffle
+/#
+#^ comment.block.riffle
+disabled : {
+#^^^^^^^^^^ comment.block.riffle
+/#
+#^ comment.block.riffle
+deeper : @int not-a-number
+#^^^^^^^^^^^^^^^^^^^^^^^^^^ comment.block.riffle
+#/
+#^ comment.block.riffle
+#/
+#^ comment.block.riffle
+
+after : value
+#^^^^ entity.name.tag.riffle

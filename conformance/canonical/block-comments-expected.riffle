@@ -1,0 +1,8 @@
+name : keeper
+service : {
+    host : real
+}
+values : [
+    first
+    fourth
+]

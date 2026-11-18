@@ -38,6 +38,8 @@ public enum RiffleError {
     MISMATCHED_CLOSER,
     /** The document ended inside a collection. */
     UNCLOSED_COLLECTION,
+    /** The document ended inside a block comment. */
+    UNCLOSED_COMMENT,
     /** A nonempty collection was written inline. */
     UNSUPPORTED_INLINE_COLLECTION,
     /** A documented resource limit, such as nesting depth, was exceeded. */

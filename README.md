@@ -8,7 +8,7 @@
 - Nonempty collections open on their own line and close on their own line; an empty collection may be written inline as `{}` or `[]`. Indentation has no syntactic significance.
 - String is the default scalar type; every other scalar says so with an `@type` marker.
 - Values are never inferred: `123`, `true`, `null` and `~` are strings.
-- Comments are `#` or `//`, on their own line or after whitespace.
+- Comments occupy whole lines: `#` for a line comment, `/#` … `#/` for a nestable block comment region.
 
 ## Example
 
@@ -61,10 +61,11 @@ does not emit them.
 - Strings do not span lines. Use `\n` inside a quoted string.
 
 ### Comments
-- A full-line comment begins after optional indentation with `#` or `//`.
-- An inline comment begins only when `#` or `//` follows at least one space or tab, and is never inside a quoted string. A `"` opens a quoted string only as the first character of a key or value, so `k : he said "hi" # c` ends at `#`.
-- Without preceding whitespace, a marker is part of a bare string: `https://example.org/a#fragment` and `path//segment` are unchanged.
-- `name : hello #world` has the value `hello`; write `"hello #world"` for the whole text.
+- A comment occupies a whole line: a line whose first non-whitespace character is `#` is ignored.
+- A `#` after a value is part of the value. `k : hello #world` has the value `hello #world`, `url : https://example.org/a#fragment` keeps its fragment, and `path//segment` and `a // b` are bare strings.
+- Because a comment cannot follow a value, `k : "v" # note` and `k : {} # note` are rejected (`TRAILING_TOKENS`). Put the comment on its own line.
+- A block comment also occupies whole lines: it opens on a line whose first non-whitespace characters are `/#`, closes one nesting level on a line containing only `#/`, and hides everything between, including invalid Riffle. A `#` inside a value is never a comment there either: `k : v /# note #/` is the string `v /# note #/`.
+- `//` is never a comment marker: `path//segment` and `a // b` are bare strings, and `name : hello //world` has the value `hello //world`.
 
 ### Root and maps
 - The document root is an implicit, insertion-ordered map.
@@ -127,7 +128,7 @@ The Java column is informative. The portable definitions and ranges are in [`LAN
 - Control characters are invalid in a bare string; quote and escape them.
 
 ### Quoted strings
-- A quoted **value** is EOL-delimited: its opening and closing `"` are the first and last quotes before optional trailing whitespace and an optional inline comment. Interior `"` characters are literal data; `\"` is still accepted and means the same thing. A closing quote is required on the line.
+- A quoted **value** is EOL-delimited: its opening and closing `"` are the first and last quotes on the line, after trimming trailing whitespace. Interior `"` characters are literal data; `\"` is still accepted and means the same thing. A closing quote is required on the line, and nothing but whitespace may follow it.
 - Escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f` and `\uXXXX` with surrogate pairs handled correctly.
 - Invalid escapes, isolated surrogates, unclosed quotes and literal control characters are errors.
 - Quoted **keys** keep their old rule: the first unescaped `"` closes the key, because a key ends at `:` rather than EOL. Interior quotes in keys must be written `\"`.
@@ -142,7 +143,7 @@ a : "He said "hello""
 b : "He said \"hello\""
 ```
 
-Both `a` and `b` above decode to `He said "hello"`. When a value must be quoted, the canonical writer prefers the literal form. For quoted values, an inline comment is recognized before a later quote, so `k : "a # b" # comment "text"` has value `a # b`. When a value needs `" # text` or `" // text` as data, escape that interior quote: `k : "a\" # text"`. Keys keep emitting escaped interior quotes.
+Both `a` and `b` above decode to `He said "hello"`. When a value must be quoted, the canonical writer prefers the literal form and keeps interior quotes literal, because the closing delimiter is the last quote on the line. Because a comment occupies a whole line, `k : "a # b"` is the value `a # b` while `k : "a" # comment` is rejected. Keys keep emitting escaped interior quotes.
 
 The writer removes quotes that are not needed (`"display name"` keeps them, `Jane Doe` does not) and escapes line breaks.
 
