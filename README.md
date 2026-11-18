@@ -338,6 +338,12 @@ Conversions for durations, URIs, colors or enums belong in the application as fu
 ./mvnw test -Dtest=ConformanceTest
 ```
 
+## Editor support
+
+[`editors/sublime/`](editors/sublime/README.md) is a Sublime Text package: a
+`sublime-syntax` definition for `.riffle` files that follows this specification, together
+with a syntax test file. It is tooling, not part of the language definition.
+
 ## Portability mappings (informative)
 
 These mappings are illustrative only. The language definition is in [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md); host-language types are not normative, and a host with one integer type must still preserve the distinct `int` and `long` Riffle kinds.

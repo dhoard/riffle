@@ -1,0 +1,140 @@
+# SYNTAX TEST "Packages/Riffle/Riffle.sublime-syntax"
+
+schemaVersion = @int 1
+#^^^^^^^^^^^^ entity.name.tag.riffle
+#             ^ keyword.operator.assignment.riffle
+#                ^^^ storage.type.numeric.int.riffle
+#                    ^ constant.numeric.integer.int.riffle
+
+name = hello world
+#      ^^^^^^^^^^^ string.unquoted.riffle
+
+count = @long 9000000000
+#        ^^^^ storage.type.numeric.long.riffle
+#             ^^^^^^^^^^ constant.numeric.integer.long.riffle
+
+ratio = @decimal -0.125
+#        ^^^^^^^ storage.type.numeric.decimal.riffle
+#                ^^^^^^ constant.numeric.decimal.riffle
+
+enabled = @boolean true
+#          ^^^^^^^ storage.type.boolean.riffle
+#                  ^^^^ constant.language.boolean.riffle
+
+missing = @null
+#          ^^^^ constant.language.null.riffle
+
+literal = @string @int 123
+#          ^^^^^^ storage.type.string.riffle
+#                 ^^^^^^^^ string.unquoted.riffle
+
+# a comment line
+# ^^^^^^^^^^^^^^ comment.line.number-sign.riffle
+
+// another comment
+#  ^^^^^^^^^^^^^^^ comment.line.double-slash.riffle
+
+slashed = value // trailing
+#         ^^^^^ string.unquoted.riffle
+#               ^^^^^^^^^^^ comment.line.double-slash.riffle
+
+url = https://example.org/a#fragment
+#     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ string.unquoted.riffle
+
+pattern = path//segment
+#         ^^^^^^^^^^^^^ string.unquoted.riffle
+
+hashed = hello#world # real comment
+#        ^^^^^^^^^^^ string.unquoted.riffle
+#                    ^^^^^^^^^^^^^^ comment.line.number-sign.riffle
+
+quoted = "He said "hello""
+#        ^ punctuation.definition.string.begin.riffle
+#         ^^^^^^^ string.quoted.double.riffle
+#                 ^ punctuation.definition.string.quote.riffle
+#                  ^^^^^ string.quoted.double.riffle
+#                        ^ punctuation.definition.string.end.riffle
+
+hashComment = "a # b" # trailing
+#              ^^^^^ string.quoted.double.riffle
+#                     ^^^^^^^^^^ comment.line.number-sign.riffle
+
+escaped = "tab\t unicode\u263A bad\q"
+#             ^^ constant.character.escape.riffle
+#                       ^^^^^^ constant.character.escape.riffle
+#                                 ^ invalid.illegal.escape.riffle
+
+"display name" = Jane
+#^^^^^^^^^^^^ string.quoted.double.riffle
+#              ^ keyword.operator.assignment.riffle
+#                ^^^^ string.unquoted.riffle
+
+emptyMap = {}
+#          ^ punctuation.section.mapping.begin.riffle
+
+emptyArray = []
+#            ^ punctuation.section.array.begin.riffle
+
+typedEmpty = @int []
+#             ^^^ storage.type.numeric.int.riffle
+#                 ^ punctuation.section.array.begin.riffle
+
+capabilities = {
+#              ^ punctuation.section.mapping.begin.riffle
+
+    host = localhost
+#   ^^^^ entity.name.tag.riffle
+
+    verbose = yes
+#             ^^^ string.unquoted.riffle
+
+    nested = {
+#            ^ punctuation.section.mapping.begin.riffle
+
+        port = @int 8080   # comment
+#               ^^^ storage.type.numeric.int.riffle
+#                   ^^^^ constant.numeric.integer.int.riffle
+#                          ^^^^^^^^^ comment.line.number-sign.riffle
+
+    }
+#   ^ punctuation.section.mapping.end.riffle
+
+    ports = @int [
+#            ^^^ storage.type.numeric.int.riffle
+#                ^ punctuation.section.array.begin.riffle
+
+        8080
+#       ^^^^ constant.numeric.integer.int.riffle
+
+    ]
+#   ^ punctuation.section.array.end.riffle
+
+    values = [ # opener comment
+#            ^ punctuation.section.array.begin.riffle
+#              ^^^^^^^^^^^^^^^^ comment.line.number-sign.riffle
+
+        @null
+#        ^^^^ constant.language.null.riffle
+
+        true
+#       ^^^^ string.unquoted.riffle
+
+    ]
+#   ^ punctuation.section.array.end.riffle
+
+    flags = @boolean [
+#            ^^^^^^^ storage.type.boolean.riffle
+
+        true
+#       ^^^^ constant.language.boolean.riffle
+
+    ]
+#   ^ punctuation.section.array.end.riffle
+
+}
+
+bad = @float 1.0
+#     ^^^^^^ invalid.illegal.unknown-type.riffle
+
+inline = [ one ]
+#        ^ invalid.illegal.unsupported-inline-collection.riffle
