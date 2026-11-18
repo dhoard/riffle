@@ -15,14 +15,14 @@ class ValueAccessTest {
 
     private static RiffleObject document() {
         return Riffle.parse("""
-                s = text
-                i = @int 3
-                l = @long 2
-                d = @decimal 0.5
-                b = @boolean true
-                n = @null
-                m = {}
-                a = [
+                s : text
+                i : @int 3
+                l : @long 2
+                d : @decimal 0.5
+                b : @boolean true
+                n : @null
+                m : {}
+                a : [
                     x
                 ]
                 """);
@@ -45,7 +45,7 @@ class ValueAccessTest {
 
     @Test
     void getRejectsMissingKeysWithPathAndContainerLocation() {
-        RiffleObject root = Riffle.parse("a = {\n    b = text\n}\n");
+        RiffleObject root = Riffle.parse("a : {\n    b : text\n}\n");
         assertThatThrownBy(() -> root.get("a").asObject().get("c"))
                 .isInstanceOfSatisfying(RiffleAccessException.class, e -> {
                     assertThat(e.getMessage()).isEqualTo("line 1, column 5: a.c: missing");
@@ -55,7 +55,7 @@ class ValueAccessTest {
 
     @Test
     void entriesKeepDocumentOrderAndAreUnmodifiable() {
-        RiffleObject root = Riffle.parse("b = 1\na = 2\n");
+        RiffleObject root = Riffle.parse("b : 1\na : 2\n");
         assertThat(root.entries().keySet()).containsExactly("b", "a");
         assertThatThrownBy(() -> root.entries().put("c", RiffleNull.INSTANCE))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -63,7 +63,7 @@ class ValueAccessTest {
 
     @Test
     void arraysAreUnmodifiableAndIndexed() {
-        RiffleArray array = Riffle.parse("a = [\nx\ny\n]").get("a").asArray();
+        RiffleArray array = Riffle.parse("a : [\nx\ny\n]").get("a").asArray();
         assertThat(array.size()).isEqualTo(2);
         assertThat(array.get(1).asString()).isEqualTo("y");
         assertThat(array.values()).hasSize(2);
@@ -179,7 +179,7 @@ class ValueAccessTest {
         assertThat(RiffleInt.of(1)).isNotEqualTo(RiffleDecimal.of(BigDecimal.ONE));
         assertThat(RiffleInt.of(1)).isNotEqualTo(RiffleString.of("1"));
         assertThat(RiffleBoolean.of(true)).isEqualTo(RiffleBoolean.of(true));
-        assertThat(RiffleNull.INSTANCE).isEqualTo(Riffle.parse("k = @null").get("k"));
+        assertThat(RiffleNull.INSTANCE).isEqualTo(Riffle.parse("k : @null").get("k"));
     }
 
     @Test
@@ -192,14 +192,14 @@ class ValueAccessTest {
 
     @Test
     void objectEqualityIgnoresOrderAndArrayEqualityRespectsIt() {
-        assertThat(Riffle.parse("a = 1\nb = 2\n")).isEqualTo(Riffle.parse("b = 2\na = 1\n"));
-        assertThat(Riffle.parse("a = [\nx\ny\n]")).isNotEqualTo(Riffle.parse("a = [\ny\nx\n]"));
-        assertThat(Riffle.parse("a = {\nb = 1\n}\n")).isNotEqualTo(Riffle.parse("a = {\nb = @long 1\n}\n"));
+        assertThat(Riffle.parse("a : 1\nb : 2\n")).isEqualTo(Riffle.parse("b : 2\na : 1\n"));
+        assertThat(Riffle.parse("a : [\nx\ny\n]")).isNotEqualTo(Riffle.parse("a : [\ny\nx\n]"));
+        assertThat(Riffle.parse("a : {\nb : 1\n}\n")).isNotEqualTo(Riffle.parse("a : {\nb : @long 1\n}\n"));
     }
 
     @Test
     void applicationConversionFailuresUseTheSameFormat() {
-        RiffleValue value = Riffle.parse("timeout = PT30S\n").get("timeout");
+        RiffleValue value = Riffle.parse("timeout : PT30S\n").get("timeout");
         assertThatThrownBy(() -> {
                     throw new RiffleAccessException(value, "expected an ISO-8601 duration such as PT30S");
                 })
@@ -220,7 +220,7 @@ class ValueAccessTest {
         assertThat(RiffleBoolean.of(true).toString()).isEqualTo("RiffleBoolean[true]");
         assertThat(RiffleString.of("x").toString()).isEqualTo("RiffleString[x]");
         assertThat(RiffleNull.INSTANCE.toString()).isEqualTo("RiffleNull");
-        assertThat(Riffle.parse("a = {}\n").toString()).isEqualTo("RiffleObject{a=RiffleObject{}}");
+        assertThat(Riffle.parse("a : {}\n").toString()).isEqualTo("RiffleObject{a=RiffleObject{}}");
     }
 
     @Test
@@ -230,8 +230,8 @@ class ValueAccessTest {
 
     @Test
     void locationsCompareByValue() {
-        RiffleLocation first = Riffle.parse("a = 1\n").get("a").location().orElseThrow();
-        RiffleLocation second = Riffle.parse("a = 2\n").get("a").location().orElseThrow();
+        RiffleLocation first = Riffle.parse("a : 1\n").get("a").location().orElseThrow();
+        RiffleLocation second = Riffle.parse("a : 2\n").get("a").location().orElseThrow();
         assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
         assertThat(first).hasToString("line 1, column 5");
     }

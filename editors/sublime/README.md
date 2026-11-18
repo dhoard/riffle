@@ -38,12 +38,12 @@ The definition follows the specification rather than a generic
 key/value grammar, so these cases behave as the language defines them:
 
 - `#` and `//` start a comment only at the start of a line or after a space or
-  tab. `url = https://example.org/a#fragment` and `pattern = path//segment`
-  are bare strings, and `hashed = hello#world # real comment` mixes both.
+  tab. `url : https://example.org/a#fragment` and `pattern : path//segment`
+  are bare strings, and `hashed : hello#world # real comment` mixes both.
 - A quoted value is closed by the last quote that leaves only whitespace or a
   comment before the end of the line, so `"He said "hello""` contains quotes
   and `"a # b" # trailing` has the value `a # b`.
-- A quoted key ends at the first unescaped quote, because a key ends at `=`.
+- A quoted key ends at the first unescaped quote, because a key ends at `:`.
 - Nonempty collections are only accepted in block form, an opener must end its
   line, and a closer must be alone on its line. The inline forms `{ }`,
   `[ one ]` and `@int [ 1 ]` are marked invalid.
@@ -65,7 +65,7 @@ The root scope is `source.riffle`. Theme authors can rely on:
 | quote delimiters | `punctuation.definition.string.begin` / `.end.riffle` |
 | bare value | `string.unquoted.riffle` |
 | string escape | `constant.character.escape.riffle` |
-| `=` | `keyword.operator.assignment.riffle` |
+| `:` | `keyword.operator.assignment.riffle` |
 | `@` of a type marker | `punctuation.definition.annotation.riffle` |
 | `@int` `@long` `@decimal` `@boolean` marker | `storage.type.numeric.*` / `storage.type.boolean.riffle` |
 | `@string` marker, and `@string` `@int` `@long` `@decimal` `@boolean` `@null` `@map` `@array` in a typed array opener | `storage.type.*.riffle` |

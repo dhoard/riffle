@@ -17,20 +17,20 @@ import org.junit.jupiter.params.provider.ValueSource;
 class IndentationTest {
 
     private static final String CANONICAL = """
-            root = {
-                a = text
-                b = @int 1
-                nested = {
-                    c = [
+            root : {
+                a : text
+                b : @int 1
+                nested : {
+                    c : [
                         one
                         two
                     ]
                 }
-                typed = @int [
+                typed : @int [
                     1
                     2
                 ]
-                quoted = "a # b"
+                quoted : "a # b"
             }
             """;
 
@@ -69,8 +69,8 @@ class IndentationTest {
     @Test
     void indentationDoesNotChangeLineNumbersOrPaths() {
         RiffleValue flat =
-                Riffle.parse("a = {\nb = @int 1\n}\n").get("a").asObject().get("b");
-        RiffleValue indented = Riffle.parse("a = {\n            b = @int 1\n}\n")
+                Riffle.parse("a : {\nb : @int 1\n}\n").get("a").asObject().get("b");
+        RiffleValue indented = Riffle.parse("a : {\n            b : @int 1\n}\n")
                 .get("a")
                 .asObject()
                 .get("b");
@@ -133,7 +133,7 @@ class IndentationTest {
 
     @Test
     void indentationInsideACommentIsIrrelevant() {
-        assertThat(Riffle.parse("  # a\n\t// b\n\nk = v\n")).isEqualTo(Riffle.parse("k = v\n"));
+        assertThat(Riffle.parse("  # a\n\t// b\n\nk : v\n")).isEqualTo(Riffle.parse("k : v\n"));
     }
 
     @Test

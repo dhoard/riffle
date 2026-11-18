@@ -1,1 +1,1 @@
-value = "bad\q"
+value : "bad\q"

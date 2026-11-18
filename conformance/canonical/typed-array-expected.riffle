@@ -1,32 +1,32 @@
-ints = [
+ints : [
     @int -2147483648
     @int 2147483647
 ]
-longs = [
+longs : [
     @long 9000000000
 ]
-decimals = [
+decimals : [
     @decimal 1
     @decimal -0.25
 ]
-flags = [
+flags : [
     @boolean true
     @boolean false
 ]
-text = [
+text : [
     low
     quoted value
 ]
-nulls = [
+nulls : [
     @null
 ]
-maps = [
+maps : [
     {
-        host = a.example
+        host : a.example
     }
     {}
 ]
-arrays = [
+arrays : [
     [
         @int 1
     ]
@@ -35,4 +35,4 @@ arrays = [
         @int 3
     ]
 ]
-empty = []
+empty : []

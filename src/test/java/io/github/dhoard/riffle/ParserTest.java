@@ -27,17 +27,18 @@ class ParserTest {
     }
 
     @Test
-    void entriesAreKeyEqualsValue() {
-        RiffleObject root = map("a = 1\nb=2\n   c   =   3   \n");
+    void entriesUseColonSeparator() {
+        RiffleObject root = map("a : 1\nb:2\n   c   :   3   \n");
         assertThat(root.entries()).containsOnlyKeys("a", "b", "c");
         assertThat(root.get("a").asString()).isEqualTo("1");
         assertThat(root.get("c").asString()).isEqualTo("3");
     }
 
     @Test
-    void theKeyEndsAtTheFirstEquals() {
-        assertThat(value("k = a = b").asString()).isEqualTo("a = b");
-        assertThat(value("k=a=123").asString()).isEqualTo("a=123");
+    void theKeyEndsAtTheFirstColon() {
+        assertThat(value("k : a : b").asString()).isEqualTo("a : b");
+        assertThat(value("k:a:123").asString()).isEqualTo("a:123");
+        assertThat(value("k : a=b").asString()).isEqualTo("a=b");
     }
 
     @Test
@@ -46,8 +47,8 @@ class ParserTest {
                 # leading
                 // leading too
                   # indented
-                k = value # inline
-                n = other // inline
+                k : value # inline
+                n : other // inline
                 """);
         assertThat(root.get("k").asString()).isEqualTo("value");
         assertThat(root.get("n").asString()).isEqualTo("other");
@@ -55,43 +56,43 @@ class ParserTest {
 
     @Test
     void markersWithoutPrecedingWhitespaceAreText() {
-        assertThat(value("k = https://example.com/a#frag").asString()).isEqualTo("https://example.com/a#frag");
-        assertThat(value("k = path//segment").asString()).isEqualTo("path//segment");
-        assertThat(value("k = hello#world").asString()).isEqualTo("hello#world");
-        assertThat(value("k = a/b//c").asString()).isEqualTo("a/b//c");
+        assertThat(value("k : https://example.com/a#frag").asString()).isEqualTo("https://example.com/a#frag");
+        assertThat(value("k : path//segment").asString()).isEqualTo("path//segment");
+        assertThat(value("k : hello#world").asString()).isEqualTo("hello#world");
+        assertThat(value("k : a/b//c").asString()).isEqualTo("a/b//c");
     }
 
     @Test
     void aMarkerAfterWhitespaceStartsAComment() {
-        assertThat(value("k = hello #world").asString()).isEqualTo("hello");
-        assertThat(value("k = hello //world").asString()).isEqualTo("hello");
-        assertThat(value("k = # just a comment").asString()).isEmpty();
+        assertThat(value("k : hello #world").asString()).isEqualTo("hello");
+        assertThat(value("k : hello //world").asString()).isEqualTo("hello");
+        assertThat(value("k : # just a comment").asString()).isEmpty();
     }
 
     @Test
     void markersInsideQuotesAreText() {
-        assertThat(value("k = \"a # b\"").asString()).isEqualTo("a # b");
-        assertThat(value("k = \"a // b\"").asString()).isEqualTo("a // b");
-        assertThat(value("k = \"a # b\" // comment").asString()).isEqualTo("a # b");
-        assertThat(value("k = \"a \\\" # b\"").asString()).isEqualTo("a \" # b");
+        assertThat(value("k : \"a # b\"").asString()).isEqualTo("a # b");
+        assertThat(value("k : \"a // b\"").asString()).isEqualTo("a // b");
+        assertThat(value("k : \"a # b\" // comment").asString()).isEqualTo("a # b");
+        assertThat(value("k : \"a \\\" # b\"").asString()).isEqualTo("a \" # b");
     }
 
     @Test
     void aQuoteInsideABareValueIsOrdinaryText() {
-        assertThat(value("k = a\"b # c").asString()).isEqualTo("a\"b");
-        assertThat(value("k = a\"b // c").asString()).isEqualTo("a\"b");
-        assertThat(value("k = he said \"hi\" # c").asString()).isEqualTo("he said \"hi\"");
+        assertThat(value("k : a\"b # c").asString()).isEqualTo("a\"b");
+        assertThat(value("k : a\"b // c").asString()).isEqualTo("a\"b");
+        assertThat(value("k : he said \"hi\" # c").asString()).isEqualTo("he said \"hi\"");
     }
 
     @Test
     void commentsMayFollowValuesOpenersAndClosers() {
         RiffleObject root = map("""
-                a = @int 1 # one
-                b = "x" // note
-                c = [ # open
+                a : @int 1 # one
+                b : "x" // note
+                c : [ # open
                     2
                 ] # close
-                d = {} # empty
+                d : {} # empty
                 """);
         assertThat(root.get("a").asInt()).isEqualTo(1);
         assertThat(root.get("b").asString()).isEqualTo("x");
@@ -102,14 +103,14 @@ class ParserTest {
     @Test
     void keysAreBareOrQuoted() {
         RiffleObject root = map("""
-                1 = a
-                schema.version = b
-                chatgpt-oauth = c
-                _x = d
-                "key with spaces" = e
-                "a=b" = f
-                "a\\"b" = g
-                "clé" = h
+                1 : a
+                schema.version : b
+                chatgpt-oauth : c
+                _x : d
+                "key with spaces" : e
+                "a=b" : f
+                "a\\"b" : g
+                "clé" : h
                 """);
         assertThat(root.entries())
                 .containsOnlyKeys(
@@ -120,8 +121,8 @@ class ParserTest {
 
     @Test
     void dotsInKeysAreLiteral() {
-        RiffleObject flat = map("a.b = x\n");
-        RiffleObject nested = map("a = {\n    b = x\n}\n");
+        RiffleObject flat = map("a.b : x\n");
+        RiffleObject nested = map("a : {\n    b : x\n}\n");
         assertThat(flat.entries()).containsOnlyKeys("a.b");
         assertThat(nested.get("a").asObject().entries()).containsOnlyKeys("b");
         assertThat(flat).isNotEqualTo(nested);
@@ -130,13 +131,13 @@ class ParserTest {
     @Test
     void bareScalarsAreAlwaysStrings() {
         RiffleObject root = map("""
-                nullValue = null
-                trueValue = true
-                number = 123
-                tilde = ~
-                empty =
-                trimmed =    spaced
-                interior = a  b
+                nullValue : null
+                trueValue : true
+                number : 123
+                tilde : ~
+                empty :
+                trimmed :    spaced
+                interior : a  b
                 """);
         assertThat(root.get("nullValue").asString()).isEqualTo("null");
         assertThat(root.get("trueValue").asString()).isEqualTo("true");
@@ -152,14 +153,14 @@ class ParserTest {
     @Test
     void quotedStringsSupportJsonEscapes() {
         RiffleObject root = map("""
-                quote = "a\\"b"
-                backslash = "a\\\\b"
-                newline = "a\\nb"
-                tab = "a\\tb"
-                backspace = "a\\bb"
-                formfeed = "a\\fb"
-                unicode = "caf\\u00e9"
-                emoji = "\\uD83D\\uDCA1"
+                quote : "a\\"b"
+                backslash : "a\\\\b"
+                newline : "a\\nb"
+                tab : "a\\tb"
+                backspace : "a\\bb"
+                formfeed : "a\\fb"
+                unicode : "caf\\u00e9"
+                emoji : "\\uD83D\\uDCA1"
                 """);
         assertThat(root.get("quote").asString()).isEqualTo("a\"b");
         assertThat(root.get("backslash").asString()).isEqualTo("a\\b");
@@ -174,17 +175,17 @@ class ParserTest {
     @Test
     void typedScalarsParse() {
         RiffleObject root = map("""
-                i = @int 42
-                n = @int -7
-                l = @long 9223372036854775807
-                d = @decimal -0.125
-                e = @decimal 1e3
-                big = @decimal 12345678901234567890.123456789
-                t = @boolean true
-                f = @boolean false
-                s = @string true
-                q = @string "quoted"
-                nothing = @null
+                i : @int 42
+                n : @int -7
+                l : @long 9223372036854775807
+                d : @decimal -0.125
+                e : @decimal 1e3
+                big : @decimal 12345678901234567890.123456789
+                t : @boolean true
+                f : @boolean false
+                s : @string true
+                q : @string "quoted"
+                nothing : @null
                 """);
         assertThat(root.get("i").asInt()).isEqualTo(42);
         assertThat(root.get("n").asInt()).isEqualTo(-7);
@@ -201,14 +202,14 @@ class ParserTest {
 
     @Test
     void decimalEqualityIgnoresScale() {
-        assertThat(value("k = @decimal 1.0")).isEqualTo(value("k = @decimal 1.00"));
-        assertThat(value("k = @decimal 1e3")).isEqualTo(value("k = @decimal 1000"));
-        assertThat(value("k = @decimal 1.5")).isNotEqualTo(value("k = @decimal 1.50e1"));
+        assertThat(value("k : @decimal 1.0")).isEqualTo(value("k : @decimal 1.00"));
+        assertThat(value("k : @decimal 1e3")).isEqualTo(value("k : @decimal 1000"));
+        assertThat(value("k : @decimal 1.5")).isNotEqualTo(value("k : @decimal 1.50e1"));
     }
 
     @Test
     void emptyCollectionsAreInline() {
-        RiffleObject root = map("a = {}\nb = []\nc = @int []\nd = @map []\n");
+        RiffleObject root = map("a : {}\nb : []\nc : @int []\nd : @map []\n");
         assertThat(root.get("a").asObject().entries()).isEmpty();
         assertThat(root.get("b").asArray().values()).isEmpty();
         assertThat(root.get("c").asArray().values()).isEmpty();
@@ -218,17 +219,17 @@ class ParserTest {
     @Test
     void nestedCollectionsAndMixedArrays() {
         RiffleObject root = map("""
-                server = {
-                    host = localhost
-                    port = @int 8080
+                server : {
+                    host : localhost
+                    port : @int 8080
                 }
-                values = [
+                values : [
                     hello
                     @int 123
                     @boolean true
                     @null
                     {
-                        name = example
+                        name : example
                     }
                     [
                         one
@@ -252,29 +253,29 @@ class ParserTest {
     @Test
     void typedArraysSupplyTheElementType() {
         RiffleObject root = map("""
-                ports = @int [
+                ports : @int [
                     8080
                     -1
                 ]
-                flags = @boolean [
+                flags : @boolean [
                     true
                     false
                 ]
-                levels = @string [
+                levels : @string [
                     low
                     true
                 ]
-                nulls = @null [
+                nulls : @null [
                     null
                     null
                 ]
-                servers = @map [
+                servers : @map [
                     {
-                        host = a
+                        host : a
                     }
                     {}
                 ]
-                rows = @array [
+                rows : @array [
                     [
                         @int 1
                     ]
@@ -307,54 +308,54 @@ class ParserTest {
 
     @Test
     void typedAndUntypedArraysHaveTheSameValue() {
-        assertThat(value("k = @int [\n    1\n]")).isEqualTo(value("k = [\n    @int 1\n]"));
-        assertThat(value("k = @string [\n    a\n]")).isEqualTo(value("k = [\n    a\n]"));
-        assertThat(value("k = @null []")).isEqualTo(value("k = []"));
+        assertThat(value("k : @int [\n    1\n]")).isEqualTo(value("k : [\n    @int 1\n]"));
+        assertThat(value("k : @string [\n    a\n]")).isEqualTo(value("k : [\n    a\n]"));
+        assertThat(value("k : @null []")).isEqualTo(value("k : []"));
     }
 
     @Test
     void aBareNullInAnArrayIsAString() {
-        RiffleArray array = map("k = [\n    null\n    @null\n]").get("k").asArray();
+        RiffleArray array = map("k : [\n    null\n    @null\n]").get("k").asArray();
         assertThat(array.get(0).asString()).isEqualTo("null");
         assertThat(array.get(1).isNull()).isTrue();
     }
 
     @Test
     void sameLineTokensArePartOfABareString() {
-        assertThat(value("k = 1 y = 2").asString()).isEqualTo("1 y = 2");
+        assertThat(value("k : 1 y : 2").asString()).isEqualTo("1 y : 2");
     }
 
     @Test
     void indentationIsInsignificant() {
         RiffleContainer canonical = Riffle.parse("""
-                a = {
-                    b = [
+                a : {
+                    b : [
                         one
                         two
                     ]
                 }
                 """);
-        assertThat(Riffle.parse("a={\nb=[\none\ntwo\n]\n}\n")).isEqualTo(canonical);
-        assertThat(Riffle.parse("        a = {\n\tb = [\n\t\t one\n   two\n]\n}\n"))
+        assertThat(Riffle.parse("a:{\nb:[\none\ntwo\n]\n}\n")).isEqualTo(canonical);
+        assertThat(Riffle.parse("        a : {\n\tb : [\n\t\t one\n   two\n]\n}\n"))
                 .isEqualTo(canonical);
     }
 
     @Test
     void lineTerminatorsAndBom() {
-        assertThat(map("a = 1\r\nb = 2\r\n").entries()).containsOnlyKeys("a", "b");
-        assertThat(map("\uFEFFa = 1\n").entries()).containsOnlyKeys("a");
-        assertThat(map("a = 1").entries()).containsOnlyKeys("a");
+        assertThat(map("a : 1\r\nb : 2\r\n").entries()).containsOnlyKeys("a", "b");
+        assertThat(map("\uFEFFa : 1\n").entries()).containsOnlyKeys("a");
+        assertThat(map("a : 1").entries()).containsOnlyKeys("a");
     }
 
     @Test
     void unicodeSurvives() {
-        assertThat(value("k = 💡 naïve").asString()).isEqualTo("💡 naïve");
-        assertThat(map("\"clé\" = valeur").get("clé").asString()).isEqualTo("valeur");
+        assertThat(value("k : 💡 naïve").asString()).isEqualTo("💡 naïve");
+        assertThat(map("\"clé\" : valeur").get("clé").asString()).isEqualTo("valeur");
     }
 
     @Test
     void valuesRecordLineColumnAndPath() {
-        RiffleValue value = map("a = {\n    b = [\n        @int 1\n    ]\n}\n")
+        RiffleValue value = map("a : {\n    b : [\n        @int 1\n    ]\n}\n")
                 .get("a")
                 .asObject()
                 .get("b")
@@ -379,7 +380,7 @@ class ParserTest {
     void documentsReadFromFilesAreParsed() throws Exception {
         Path file = Files.createTempFile("riffle", ".riffle");
         try {
-            Files.writeString(file, "a = @int 1\n", StandardCharsets.UTF_8);
+            Files.writeString(file, "a : @int 1\n", StandardCharsets.UTF_8);
             assertThat(Riffle.parse(file).get("a").asInt()).isEqualTo(1);
         } finally {
             Files.deleteIfExists(file);

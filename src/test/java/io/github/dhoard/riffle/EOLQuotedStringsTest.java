@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class EOLQuotedStringsTest {
 
     private static String value(String source) {
-        return Riffle.parse("k = " + source + "\n").get("k").asString();
+        return Riffle.parse("k : " + source + "\n").get("k").asString();
     }
 
     private static RiffleObject object(String text) {
@@ -18,7 +18,7 @@ class EOLQuotedStringsTest {
     }
 
     private static void rejects(String source, RiffleError expected) {
-        assertThatThrownBy(() -> Riffle.parse("k = " + source + "\n"))
+        assertThatThrownBy(() -> Riffle.parse("k : " + source + "\n"))
                 .isInstanceOfSatisfying(RiffleParseException.class, e -> {
                     assertThat(e.category()).isEqualTo(expected);
                     assertThat(e.location().line()).isEqualTo(1);
@@ -86,12 +86,12 @@ class EOLQuotedStringsTest {
     @Test
     void typedStringsAndArraysUseTheSameValueRule() {
         RiffleObject root = Riffle.parse("""
-                typed = @string "He said "hello""
-                list = [
+                typed : @string "He said "hello""
+                list : [
                     "one "two""
                     "a # b" # element comment
                 ]
-                typedList = @string [
+                typedList : @string [
                     "He said \"hello\""
                 ]
                 """);
@@ -103,24 +103,24 @@ class EOLQuotedStringsTest {
 
     @Test
     void quotedKeysKeepTheFirstUnescapedQuoteRule() {
-        RiffleObject root = Riffle.parse("\"a\\\"b\" = \"He said \"hello\"\"\n");
+        RiffleObject root = Riffle.parse("\"a\\\"b\" : \"He said \"hello\"\"\n");
         assertThat(root.entries()).containsOnlyKeys("a\"b");
         assertThat(root.get("a\"b").asString()).isEqualTo("He said \"hello\"");
 
         assertThatThrownBy(() -> Riffle.parse("\"a\"b\" = v\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
-                        e -> assertThat(e.category()).isEqualTo(RiffleError.MISSING_EQUALS));
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.MISSING_COLON));
     }
 
     @Test
     void theCanonicalWriterPrefersLiteralInteriorQuotes() {
         RiffleObject document = object("  He said \"hello\"  ");
         String written = Riffle.write(document);
-        assertThat(written).isEqualTo("k = \"  He said \"hello\"  \"\n");
+        assertThat(written).isEqualTo("k : \"  He said \"hello\"  \"\n");
         assertThat(Riffle.parse(written)).isEqualTo(document);
         assertThat(Riffle.write(Riffle.parse(written))).isEqualTo(written);
-        assertThat(Riffle.write(object("He said \"hello\""))).isEqualTo("k = He said \"hello\"\n");
+        assertThat(Riffle.write(object("He said \"hello\""))).isEqualTo("k : He said \"hello\"\n");
     }
 
     @Test
@@ -131,9 +131,9 @@ class EOLQuotedStringsTest {
             assertThat(Riffle.parse(written)).as(written).isEqualTo(document);
             assertThat(Riffle.write(Riffle.parse(written))).as(written).isEqualTo(written);
         }
-        assertThat(Riffle.write(object("a\" # b"))).isEqualTo("k = \"a\\\" # b\"\n");
-        assertThat(Riffle.write(object("a\"\" # b"))).isEqualTo("k = \"a\"\\\" # b\"\n");
-        assertThat(Riffle.write(object("a\"\t#b"))).isEqualTo("k = \"a\"\\t#b\"\n");
+        assertThat(Riffle.write(object("a\" # b"))).isEqualTo("k : \"a\\\" # b\"\n");
+        assertThat(Riffle.write(object("a\"\" # b"))).isEqualTo("k : \"a\"\\\" # b\"\n");
+        assertThat(Riffle.write(object("a\"\t#b"))).isEqualTo("k : \"a\"\\t#b\"\n");
     }
 
     @Test

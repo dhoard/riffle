@@ -14,8 +14,8 @@ public enum RiffleError {
     UNTERMINATED_STRING,
     /** A map key is neither a bare key nor a valid quoted key. */
     INVALID_KEY,
-    /** A map entry has no {@code =}, or a key is not followed by one. */
-    MISSING_EQUALS,
+    /** A map entry has no {@code :}, or a key is not followed by one. */
+    MISSING_COLON,
     /** A typed value has no payload. */
     MISSING_VALUE,
     /** Characters remain after a complete value. */

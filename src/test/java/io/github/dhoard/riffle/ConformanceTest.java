@@ -97,7 +97,7 @@ class ConformanceTest {
             case "decimal" -> {
                 assertThat(value.isDecimal()).as(path).isTrue();
                 String canonical = Riffle.write(RiffleObject.of(Map.of("v", value)));
-                assertThat(canonical).as(path).isEqualTo("v = @decimal " + string(assertion.get("value")) + "\n");
+                assertThat(canonical).as(path).isEqualTo("v : @decimal " + string(assertion.get("value")) + "\n");
             }
             case "boolean" -> {
                 assertThat(value.isBoolean()).as(path).isTrue();

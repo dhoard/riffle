@@ -14,32 +14,32 @@ class SpecConformanceTest {
 
     private static final String VALID = """
             # blank string, literal strings, explicit null
-            empty =
-            stringTrue = true
-            stringNull = null
-            stringTilde = ~
-            booleanTrue = @boolean true
-            nullValue = @null
-            literalAt = "@null"
+            empty :
+            stringTrue : true
+            stringNull : null
+            stringTilde : ~
+            booleanTrue : @boolean true
+            nullValue : @null
+            literalAt : "@null"
 
             # quoted key and punctuation
-            "key with spaces" = a=b
-            url = https://example.org/a#fragment
+            "key with spaces" : a=b
+            url : https://example.org/a#fragment
 
             # empty collections
-            emptyMap = {}
-            emptyArray = []
-            emptyInts = @int []
+            emptyMap : {}
+            emptyArray : []
+            emptyInts : @int []
 
             # nested values and mixed array
-            complex = {
-                items = [
+            complex : {
+                items : [
                     text
                     @long 9000000000
                     @decimal 1.25
                     @null
                     {
-                        enabled = @boolean false
+                        enabled : @boolean false
                     }
                     [
                         nested
@@ -48,7 +48,7 @@ class SpecConformanceTest {
             }
 
             # homogeneous array
-            ports = @int [
+            ports : @int [
                 80
                 443
             ]
@@ -92,28 +92,28 @@ class SpecConformanceTest {
 
     static Stream<Arguments> invalid() {
         return Stream.of(
-                Arguments.of("x = @int", RiffleError.MISSING_VALUE),
-                Arguments.of("x = @int 01", RiffleError.INVALID_TYPED_VALUE),
-                Arguments.of("x = @int 2147483648", RiffleError.NUMBER_OUT_OF_RANGE),
-                Arguments.of("x = @boolean yes", RiffleError.INVALID_TYPED_VALUE),
-                Arguments.of("x = @null null", RiffleError.INVALID_TYPED_VALUE),
-                Arguments.of("x = @float 1.0", RiffleError.UNKNOWN_TYPE),
-                Arguments.of("x = @int \"1\"", RiffleError.INVALID_TYPED_VALUE),
-                Arguments.of("x = { a = b }", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
-                Arguments.of("x = [ one ]", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
-                Arguments.of("x = @int [ 1 ]", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
-                Arguments.of("x = { }", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
-                Arguments.of("x = [\n  @int 1\n}", RiffleError.MISMATCHED_CLOSER),
-                Arguments.of("x = @int [\n  @int 1\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
-                Arguments.of("x = @int [\n  text\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
-                Arguments.of("x = @map [\n  hello\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
-                Arguments.of("x = @null [\n  hello\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
-                Arguments.of("x = a\nx = b", RiffleError.DUPLICATE_KEY),
-                Arguments.of("@int 1 = a", RiffleError.INVALID_KEY),
-                Arguments.of("x = \"abc", RiffleError.UNTERMINATED_STRING),
-                Arguments.of("x = \"bad\\q\"", RiffleError.INVALID_ESCAPE),
-                Arguments.of("x = {\n y = z", RiffleError.UNCLOSED_COLLECTION),
-                Arguments.of("x = {} y = 2", RiffleError.TRAILING_TOKENS));
+                Arguments.of("x : @int", RiffleError.MISSING_VALUE),
+                Arguments.of("x : @int 01", RiffleError.INVALID_TYPED_VALUE),
+                Arguments.of("x : @int 2147483648", RiffleError.NUMBER_OUT_OF_RANGE),
+                Arguments.of("x : @boolean yes", RiffleError.INVALID_TYPED_VALUE),
+                Arguments.of("x : @null null", RiffleError.INVALID_TYPED_VALUE),
+                Arguments.of("x : @float 1.0", RiffleError.UNKNOWN_TYPE),
+                Arguments.of("x : @int \"1\"", RiffleError.INVALID_TYPED_VALUE),
+                Arguments.of("x : { a : b }", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
+                Arguments.of("x : [ one ]", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
+                Arguments.of("x : @int [ 1 ]", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
+                Arguments.of("x : { }", RiffleError.UNSUPPORTED_INLINE_COLLECTION),
+                Arguments.of("x : [\n  @int 1\n}", RiffleError.MISMATCHED_CLOSER),
+                Arguments.of("x : @int [\n  @int 1\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
+                Arguments.of("x : @int [\n  text\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
+                Arguments.of("x : @map [\n  hello\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
+                Arguments.of("x : @null [\n  hello\n]", RiffleError.INVALID_ARRAY_ELEMENT_TYPE),
+                Arguments.of("x : a\nx : b", RiffleError.DUPLICATE_KEY),
+                Arguments.of("@int 1 : a", RiffleError.INVALID_KEY),
+                Arguments.of("x : \"abc", RiffleError.UNTERMINATED_STRING),
+                Arguments.of("x : \"bad\\q\"", RiffleError.INVALID_ESCAPE),
+                Arguments.of("x : {\n y : z", RiffleError.UNCLOSED_COLLECTION),
+                Arguments.of("x : {} y : 2", RiffleError.TRAILING_TOKENS));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -128,16 +128,16 @@ class SpecConformanceTest {
     @Test
     void quotedValueExamplesFromSection5_2() {
         RiffleObject root = Riffle.parse("""
-                literal = "He said "hello""
-                escaped = "He said \\"hello\\""
-                padded = "  padded  "
-                quotes = ""quoted""
-                hash = "a # b" # comment "text"
-                slashes = "a // b" // comment "text"
-                commentAsData = "a\\" # text"
-                bare = He said "hello" # trailing comment
-                backslash = "line \\\\n"
-                newline = "line \\n"
+                literal : "He said "hello""
+                escaped : "He said \\"hello\\""
+                padded : "  padded  "
+                quotes : ""quoted""
+                hash : "a # b" # comment "text"
+                slashes : "a // b" // comment "text"
+                commentAsData : "a\\" # text"
+                bare : He said "hello" # trailing comment
+                backslash : "line \\\\n"
+                newline : "line \\n"
                 """);
         assertThat(root.get("literal").asString()).isEqualTo("He said \"hello\"");
         assertThat(root.get("escaped").asString()).isEqualTo(root.get("literal").asString());
@@ -154,6 +154,6 @@ class SpecConformanceTest {
 
     @Test
     void twoEntriesOnOneLineAreOneStringValue() {
-        assertThat(Riffle.parse("x = 1 y = 2").get("x").asString()).isEqualTo("1 y = 2");
+        assertThat(Riffle.parse("x : 1 y : 2").get("x").asString()).isEqualTo("1 y : 2");
     }
 }

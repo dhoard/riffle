@@ -16,7 +16,7 @@
 #     whitespace or an inline comment before the end of the line, so
 #     `"He said "hello""` is one string containing quotes.
 #   * A quoted *key* ends at the first unescaped quote, because a key ends at
-#     `=` rather than at the end of the line.
+#     `:` rather than at the end of the line.
 #
 # Semantic errors are deliberately not detected: duplicate keys, integer range
 # overflow, and malformed UTF-8 are parser or runtime concerns, not syntax.
@@ -50,7 +50,7 @@ contexts:
         2: invalid.illegal.unexpected-collection.riffle
     - include: map-entries
 
-  # Body of a nested map, entered after a `key = {` line.
+  # Body of a nested map, entered after a `key : {` line.
   map-body:
     - match: '^([ \t]*)(\})'
       captures:
@@ -61,7 +61,7 @@ contexts:
         2: invalid.illegal.mismatched-closer.riffle
     - include: map-entries
 
-  # One `key = value` line of a map, and the value that follows it. Rule order
+  # One `key : value` line of a map, and the value that follows it. Rule order
   # matters: comments are recognized before a value, and a bare value is the
   # last resort.
   map-entries:
@@ -69,25 +69,25 @@ contexts:
     - include: map-entry
     - match: '^([ \t]*)({{bare_string}})'
       captures:
-        2: invalid.illegal.missing-equals.riffle
+        2: invalid.illegal.missing-colon.riffle
     - include: inline-comment
     - include: value-start
 
   map-entry:
-    # Bare key: [A-Za-z0-9_][A-Za-z0-9_.-]*, followed by `=`.
-    - match: '^([ \t]*)([A-Za-z0-9_][A-Za-z0-9_.-]*)([ \t]*)(=)'
+    # Bare key: [A-Za-z0-9_][A-Za-z0-9_.-]*, followed by `:`.
+    - match: '^([ \t]*)([A-Za-z0-9_][A-Za-z0-9_.-]*)([ \t]*)(:)'
       captures:
         2: entity.name.tag.riffle
         4: keyword.operator.assignment.riffle
-    # Quoted key: ends at the first unescaped quote and must be followed by `=`.
-    - match: '^([ \t]*)(")((?:[^"\\]|\\.)*)(")([ \t]*)(=)'
+    # Quoted key: ends at the first unescaped quote and must be followed by `:`.
+    - match: '^([ \t]*)(")((?:[^"\\]|\\.)*)(")([ \t]*)(:)'
       captures:
         2: punctuation.definition.string.begin.riffle
         3: string.quoted.double.riffle
         4: punctuation.definition.string.end.riffle
         6: keyword.operator.assignment.riffle
 
-  # Body of an untyped array, entered after a `key = [` line or an element
+  # Body of an untyped array, entered after a `key : [` line or an element
   # line that opens a nested array.
   array-body:
     - match: '^([ \t]*)(\])'
@@ -367,9 +367,9 @@ contexts:
       scope: punctuation.definition.string.end.riffle
       pop: true
     # A backslash before a closing quote that ends the line leaves an
-    # unfinished escape, so `x = "abc\"` is INVALID_ESCAPE. When an inline
+    # unfinished escape, so `x : "abc\"` is INVALID_ESCAPE. When an inline
     # comment follows instead, that quote is interior data and the escape is
-    # valid: `x = "a\" # text"` is the string `a" # text`.
+    # valid: `x : "a\" # text"` is the string `a" # text`.
     - match: '\\"(?=[ \t]*$)'
       scope: invalid.illegal.escape.riffle
       pop: true

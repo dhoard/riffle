@@ -676,7 +676,13 @@
       "id": "invalid.root-array",
       "expectation": "invalid",
       "input": "invalid/root-array.riffle",
-      "errorCategory": "MISSING_EQUALS"
+      "errorCategory": "MISSING_COLON"
+    },
+    {
+      "id": "invalid.equals-separator",
+      "expectation": "invalid",
+      "input": "invalid/equals-separator.riffle",
+      "errorCategory": "MISSING_COLON"
     },
     {
       "id": "invalid.unterminated-quoted-value",

@@ -1,5 +1,5 @@
-emoji = 💡
-escaped = "\uD83D\uDCA1 \u00E9"
-bom = "\uFEFFinside"
-noncharacter = "\uFFFF"
-keyWithUnicode = café
+emoji : 💡
+escaped : "\uD83D\uDCA1 \u00E9"
+bom : "\uFEFFinside"
+noncharacter : "\uFFFF"
+keyWithUnicode : café

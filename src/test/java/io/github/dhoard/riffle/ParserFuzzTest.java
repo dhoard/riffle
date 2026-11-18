@@ -16,6 +16,7 @@ class ParserFuzzTest {
         "k",
         "key",
         "=",
+        ":",
         " ",
         "\t",
         "\n",
@@ -56,13 +57,13 @@ class ParserFuzzTest {
         "\u0001",
         "@int [",
         "@string [",
-        "k = v",
-        "k =",
-        "k = @int 1",
-        "k = {",
-        "k = [",
-        "\"k\" = v",
-        "k = \"v\""
+        "k : v",
+        "k :",
+        "k : @int 1",
+        "k : {",
+        "k : [",
+        "\"k\" : v",
+        "k : \"v\""
     };
 
     @Test

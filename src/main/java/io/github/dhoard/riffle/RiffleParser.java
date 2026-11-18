@@ -179,25 +179,25 @@ final class RiffleParser {
                 Quoted quoted = quotedKey(raw, pos, index);
                 key = quoted.text;
                 pos = Syntax.firstNonWhitespace(raw, quoted.end);
-                if (pos >= raw.length() || raw.charAt(pos) != '=') {
+                if (pos >= raw.length() || raw.charAt(pos) != ':') {
                     throw error(
-                            RiffleError.MISSING_EQUALS,
-                            "expected '=' after the key",
+                            RiffleError.MISSING_COLON,
+                            "expected ':' after the key",
                             index,
                             Math.min(pos, raw.length()));
                 }
                 pos++;
             } else {
-                int equals = raw.indexOf('=', pos);
-                if (equals < 0) {
-                    throw error(RiffleError.MISSING_EQUALS, "expected 'key = value'", index, start);
+                int colon = raw.indexOf(':', pos);
+                if (colon < 0) {
+                    throw error(RiffleError.MISSING_COLON, "expected 'key : value'", index, start);
                 }
-                String candidate = Syntax.trim(raw.substring(pos, equals));
+                String candidate = Syntax.trim(raw.substring(pos, colon));
                 if (!Syntax.isBareKey(candidate)) {
                     throw error(RiffleError.INVALID_KEY, "invalid key; quote it", index, pos);
                 }
                 key = candidate;
-                pos = equals + 1;
+                pos = colon + 1;
             }
             if (entries.containsKey(key)) {
                 throw error(RiffleError.DUPLICATE_KEY, "duplicate key", index, start);
@@ -591,7 +591,7 @@ final class RiffleParser {
     private record Quoted(String text, int end) {}
 
     /**
-     * Parses a quoted key. A key ends at {@code =}, so the first unescaped quote closes it;
+     * Parses a quoted key. A key ends at {@code :}, so the first unescaped quote closes it;
      * values use {@link #quotedValue}, whose delimiter is EOL-relative. Escape sequences never
      * contain a literal quote outside of {@code \"}, so skipping one character after a backslash
      * is sufficient to find the key's delimiter. Any malformed escape is then reported by

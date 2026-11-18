@@ -65,41 +65,47 @@ class WriterTest {
                 "key with space", s("v"),
                 "a.b", s("dotted"));
         assertThat(Riffle.write(document)).isEqualTo("""
-                name = Amanda
-                url = https://example.com:8080/a?b=1#c
-                empty = ""
-                padded = "  x  "
-                nullText = null
-                marker = "@int 1"
-                brace = "}"
-                hash = "# x"
-                commentish = "a # b"
-                newline = "a\\nb"
-                tab = "a\\tb"
-                int = @int 42
-                long = @long 9007199254740993
-                decimal = @decimal 0.25
-                flag = @boolean true
-                nothing = @null
-                emptyMap = {}
-                emptyArray = []
-                map = {
-                    a = b
+                name : Amanda
+                url : https://example.com:8080/a?b=1#c
+                empty : ""
+                padded : "  x  "
+                nullText : null
+                marker : "@int 1"
+                brace : "}"
+                hash : "# x"
+                commentish : "a # b"
+                newline : "a\\nb"
+                tab : "a\\tb"
+                int : @int 42
+                long : @long 9007199254740993
+                decimal : @decimal 0.25
+                flag : @boolean true
+                nothing : @null
+                emptyMap : {}
+                emptyArray : []
+                map : {
+                    a : b
                 }
-                list = [
+                list : [
                     a
                     @int 1
                 ]
-                "key with space" = v
-                a.b = dotted
+                "key with space" : v
+                a.b : dotted
                 """);
+    }
+
+    @Test
+    void canonicalSeparatorHasOneSpaceOnEachSide() {
+        RiffleObject parsed = Riffle.parse("a:b\n   c   :   d\n\"e f\":g\nmessage:Hello: world\n");
+        assertThat(Riffle.write(parsed)).isEqualTo("a : b\nc : d\n\"e f\" : g\nmessage : Hello: world\n");
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
     @MethodSource("stringSpellings")
     void stringsAreQuotedOnlyWhenRequired(String text, String expected) {
         String written = Riffle.write(object("k", s(text)));
-        assertThat(written).isEqualTo("k = " + expected + "\n");
+        assertThat(written).isEqualTo("k : " + expected + "\n");
         assertThat(Riffle.parse(written)).isEqualTo(object("k", s(text)));
     }
 
@@ -147,23 +153,23 @@ class WriterTest {
                 "clé", s("v"),
                 "", s("v"));
         assertThat(Riffle.write(document)).isEqualTo("""
-                provider = v
-                a.b = v
-                1 = v
-                _x = v
-                "a b" = v
-                "a=b" = v
-                "@x" = v
-                "clé" = v
-                "" = v
+                provider : v
+                a.b : v
+                1 : v
+                _x : v
+                "a b" : v
+                "a=b" : v
+                "@x" : v
+                "clé" : v
+                "" : v
                 """);
         assertThat(Riffle.parse(Riffle.write(document))).isEqualTo(document);
     }
 
     @Test
     void commentsAreNotPreserved() {
-        String withComments = "# header\nk = v # note\n\n# footer\n";
-        assertThat(Riffle.write(Riffle.parse(withComments))).isEqualTo("k = v\n");
+        String withComments = "# header\nk : v # note\n\n# footer\n";
+        assertThat(Riffle.write(Riffle.parse(withComments))).isEqualTo("k : v\n");
     }
 
     @Test
@@ -221,7 +227,7 @@ class WriterTest {
         Path file = directory.resolve("config.riffle");
         RiffleObject value = object("port", RiffleInt.of(80));
         Riffle.write(file, value);
-        assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo("port = @int 80\n");
+        assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo("port : @int 80\n");
         RiffleObject parsed = Riffle.parse(file);
         assertThat(parsed).isEqualTo(value);
         assertThat(parsed.get("port").location().flatMap(RiffleLocation::source))
@@ -234,7 +240,7 @@ class WriterTest {
     @Test
     void parseErrorsInFilesNameTheFile(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("bad.riffle");
-        Files.writeString(file, "a = 1\nb = @int\n", StandardCharsets.UTF_8);
+        Files.writeString(file, "a : 1\nb : @int\n", StandardCharsets.UTF_8);
         assertThatThrownBy(() -> Riffle.parse(file)).isInstanceOfSatisfying(RiffleParseException.class, e -> {
             assertThat(e.location().source()).contains(file.toString());
             assertThat(e.getMessage()).startsWith(file + ":2:");
@@ -267,7 +273,7 @@ class WriterTest {
 
     @Test
     void readerIsFullyConsumedAndLeftOpen() throws IOException {
-        TrackingReader reader = new TrackingReader("a = text\nb = \"x\\ny\"\n");
+        TrackingReader reader = new TrackingReader("a : text\nb : \"x\\ny\"\n");
         RiffleObject parsed = Riffle.parse(reader);
         assertThat(parsed.get("b").asString()).isEqualTo("x\ny");
         assertThat(parsed.get("a").location().flatMap(RiffleLocation::source)).isEmpty();

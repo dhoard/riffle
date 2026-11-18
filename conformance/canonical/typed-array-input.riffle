@@ -1,32 +1,32 @@
-ints = @int [
+ints : @int [
     -2147483648
     2147483647
 ]
-longs = @long [
+longs : @long [
     9000000000
 ]
-decimals = @decimal [
+decimals : @decimal [
     1.00
     -0.25
 ]
-flags = @boolean [
+flags : @boolean [
     true
     false
 ]
-text = @string [
+text : @string [
     low
     "quoted value"
 ]
-nulls = @null [
+nulls : @null [
     null
 ]
-maps = @map [
+maps : @map [
     {
-        host = a.example
+        host : a.example
     }
     {}
 ]
-arrays = @array [
+arrays : @array [
     [
         @int 1
     ]
@@ -35,4 +35,4 @@ arrays = @array [
         3
     ]
 ]
-empty = @decimal []
+empty : @decimal []

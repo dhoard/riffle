@@ -1,22 +1,22 @@
-literal = "He said "hello""
-escaped = "He said \"hello\""
-padded = "  padded  "
-literalQuotes = ""quoted""
-trailingQuote = "hello""
-empty = ""
-hashComment = "a # b" # trailing comment "text"
-slashComment = "a // b" // trailing comment "text"
-ambiguousBoundary = "a" # text"
-escapedBoundary = "a\" # text"
-bareQuotes = He said "hello" # trailing comment
-escapedBackslash = "line \\n"
-escapedNewline = "line \n"
-canonicalLiteral = "  He said "hello"  "
-typed = @string "He said "hello""
-list = [
+literal : "He said "hello""
+escaped : "He said \"hello\""
+padded : "  padded  "
+literalQuotes : ""quoted""
+trailingQuote : "hello""
+empty : ""
+hashComment : "a # b" # trailing comment "text"
+slashComment : "a // b" // trailing comment "text"
+ambiguousBoundary : "a" # text"
+escapedBoundary : "a\" # text"
+bareQuotes : He said "hello" # trailing comment
+escapedBackslash : "line \\n"
+escapedNewline : "line \n"
+canonicalLiteral : "  He said "hello"  "
+typed : @string "He said "hello""
+list : [
     "one "two""
     "a # b" # element comment
 ]
-typedList = @string [
+typedList : @string [
     "He said \"hello\""
 ]

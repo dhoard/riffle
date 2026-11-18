@@ -1,5 +1,5 @@
-empty = []
-mixed = [
+empty : []
+mixed : [
     text
     @int 1
     @long 2
@@ -7,13 +7,13 @@ mixed = [
     @boolean true
     @null
     {
-        key = value
+        key : value
     }
     [
         nested
     ]
 ]
-emptyNested = [
+emptyNested : [
     []
     {}
 ]

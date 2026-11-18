@@ -13,16 +13,16 @@ import org.junit.jupiter.api.Test;
 class TypedGetterTest {
 
     private static final String DOCUMENT = """
-            s = text
-            i = @int 3
-            l = @long 4
-            d = @decimal 0.5
-            b = @boolean true
-            n = @null
-            m = {
-                child = nested
+            s : text
+            i : @int 3
+            l : @long 4
+            d : @decimal 0.5
+            b : @boolean true
+            n : @null
+            m : {
+                child : nested
             }
-            a = [
+            a : [
                 item
                 @int 7
                 @long 8

@@ -13,7 +13,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class UnicodeEscapeTest {
 
     private static String valueOf(String document) {
-        return Riffle.parse("k = " + document + "\n").get("k").asString();
+        return Riffle.parse("k : " + document + "\n").get("k").asString();
     }
 
     static Stream<Arguments> asciiEscapes() {
@@ -60,7 +60,7 @@ class UnicodeEscapeTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("nonAsciiHexDigits")
     void nonAsciiHexadecimalDigitsAreRejected(String document) {
-        assertThatThrownBy(() -> Riffle.parse("k = " + document + "\n"))
+        assertThatThrownBy(() -> Riffle.parse("k : " + document + "\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_ESCAPE));
@@ -81,7 +81,7 @@ class UnicodeEscapeTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("malformedEscapes")
     void truncatedAndIsolatedSurrogateEscapesAreRejected(String document) {
-        assertThatThrownBy(() -> Riffle.parse("k = " + document + "\n"))
+        assertThatThrownBy(() -> Riffle.parse("k : " + document + "\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_ESCAPE));
@@ -89,7 +89,7 @@ class UnicodeEscapeTest {
 
     @Test
     void aLoneLowSurrogateInTheSourceIsRejected() {
-        assertThatThrownBy(() -> Riffle.parse("k = \"\uDCA1\"\n"))
+        assertThatThrownBy(() -> Riffle.parse("k : \"\uDCA1\"\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_UTF8));
@@ -98,7 +98,7 @@ class UnicodeEscapeTest {
     @Test
     void escapedSupplementaryCharactersAreWrittenLiterallyAndRoundTrip() {
         RiffleObject value = RiffleObject.of(java.util.Map.of("k", RiffleString.of("💡")));
-        assertThat(Riffle.write(value)).isEqualTo("k = 💡\n");
+        assertThat(Riffle.write(value)).isEqualTo("k : 💡\n");
         assertThat(Riffle.parse(Riffle.write(value))).isEqualTo(value);
     }
 }

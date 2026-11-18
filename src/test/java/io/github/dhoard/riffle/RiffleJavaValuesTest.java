@@ -17,16 +17,16 @@ class RiffleJavaValuesTest {
     @Test
     void toJavaMapsEveryKindAndKeepsInsertionOrderAndNulls() {
         RiffleObject root = Riffle.parse("""
-                s = text
-                i = @int 1
-                l = @long 2
-                d = @decimal 1.25
-                b = @boolean true
-                n = @null
-                m = {
-                    x = y
+                s : text
+                i : @int 1
+                l : @long 2
+                d : @decimal 1.25
+                b : @boolean true
+                n : @null
+                m : {
+                    x : y
                 }
-                a = [
+                a : [
                     x
                     @null
                 ]
@@ -104,16 +104,16 @@ class RiffleJavaValuesTest {
         assertThat(root.getArray("a").getString(0)).isEqualTo("text");
         assertThat(root.getArray("a").get(1).isNull()).isTrue();
         assertThat(Riffle.write(root)).isEqualTo("""
-                        s = text
-                        i = @int 1
-                        l = @long 2
-                        d = @decimal 1.5
-                        b = @boolean true
-                        n = @null
-                        m = {
-                            k = v
+                        s : text
+                        i : @int 1
+                        l : @long 2
+                        d : @decimal 1.5
+                        b : @boolean true
+                        n : @null
+                        m : {
+                            k : v
                         }
-                        a = [
+                        a : [
                             text
                             @null
                         ]
@@ -123,16 +123,16 @@ class RiffleJavaValuesTest {
     @Test
     void roundTripsPreserveKindsOrderAndPresentNullVersusMissing() {
         String document = """
-                s = text
-                i = @int 1
-                l = @long 2
-                d = @decimal 0.5
-                b = @boolean true
-                n = @null
-                m = {
-                    child = value
+                s : text
+                i : @int 1
+                l : @long 2
+                d : @decimal 0.5
+                b : @boolean true
+                n : @null
+                m : {
+                    child : value
                 }
-                a = [
+                a : [
                     x
                     @int 3
                 ]

@@ -4,7 +4,7 @@
 
 [`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) is the normative specification for every implementation; this file is the Java binding guide. Java type names in the spec appear only in non-normative appendices.
 
-- Every entry is `key = value` and ends at the end of its line.
+- Every entry is `key : value` and ends at the end of its line. The canonical writer emits exactly one space before and after the colon.
 - Nonempty collections open on their own line and close on their own line; an empty collection may be written inline as `{}` or `[]`. Indentation has no syntactic significance.
 - String is the default scalar type; every other scalar says so with an `@type` marker.
 - Values are never inferred: `123`, `true`, `null` and `~` are strings.
@@ -13,18 +13,18 @@
 ## Example
 
 ```riffle
-schemaVersion = @int 1
-provider = chatgpt
-model = gpt-6-sol
-transport = chatgpt-oauth
+schemaVersion : @int 1
+provider : chatgpt
+model : gpt-6-sol
+transport : chatgpt-oauth
 
-capabilities = {
-    tools = @boolean true
-    streaming = @boolean true
-    contextWindow = @int 272000
-    maxOutputTokens = @int 128000
+capabilities : {
+    tools : @boolean true
+    streaming : @boolean true
+    contextWindow : @int 272000
+    maxOutputTokens : @int 128000
 
-    reasoning = [
+    reasoning : [
         none
         low
         medium
@@ -33,16 +33,16 @@ capabilities = {
         max
     ]
 
-    defaultReasoning = high
-    tokenizer = heuristic
+    defaultReasoning : high
+    tokenizer : heuristic
 
-    replayRequirements = [
+    replayRequirements : [
         chatgpt-oauth
     ]
 }
 
-options = {
-    chatgpt-oauth = {}
+options : {
+    chatgpt-oauth : {}
 }
 ```
 
@@ -62,9 +62,9 @@ does not emit them.
 
 ### Comments
 - A full-line comment begins after optional indentation with `#` or `//`.
-- An inline comment begins only when `#` or `//` follows at least one space or tab, and is never inside a quoted string. A `"` opens a quoted string only as the first character of a key or value, so `k = he said "hi" # c` ends at `#`.
+- An inline comment begins only when `#` or `//` follows at least one space or tab, and is never inside a quoted string. A `"` opens a quoted string only as the first character of a key or value, so `k : he said "hi" # c` ends at `#`.
 - Without preceding whitespace, a marker is part of a bare string: `https://example.org/a#fragment` and `path//segment` are unchanged.
-- `name = hello #world` has the value `hello`; write `"hello #world"` for the whole text.
+- `name : hello #world` has the value `hello`; write `"hello #world"` for the whole text.
 
 ### Root and maps
 - The document root is an implicit, insertion-ordered map.
@@ -77,26 +77,26 @@ An empty collection may be written inline or as an empty block; a populated one 
 Empty:
 
 ```riffle
-options = {
-    chatgpt-oauth = {}
+options : {
+    chatgpt-oauth : {}
 }
 ```
 
 Populated:
 
 ```riffle
-options = {
-    chatgpt-oauth = {
-        key = Test value
+options : {
+    chatgpt-oauth : {
+        key : Test value
     }
 }
 ```
 
-Arrays work the same way: `tools = []` becomes `tools = [`, one element per line, then `]`. Writing `chatgpt-oauth = { key = Test value }` is rejected, because a value runs to the end of its line — a nonempty collection cannot be inline.
+Arrays work the same way: `tools : []` becomes `tools : [`, one element per line, then `]`. Writing `chatgpt-oauth : { key : Test value }` is rejected, because a value runs to the end of its line — a nonempty collection cannot be inline.
 
 ### Keys
 - A **bare key** matches `[A-Za-z0-9_][A-Za-z0-9_.-]*`: `provider`, `chatgpt-oauth`, `1`, `schema.version`.
-- Any other key is **quoted**, using the string escapes: `"key with spaces" = value`.
+- Any other key is **quoted**, using the string escapes: `"key with spaces" : value`.
 - A dot in a key is a literal dot, not a path separator.
 - Keys are always strings and are case-sensitive. Duplicate keys in one map are an error.
 
@@ -122,7 +122,7 @@ The Java column is informative. The portable definitions and ranges are in [`LAN
 - `@null` takes no payload. `@float` and any other unknown type is an error.
 
 ### Bare strings
-- Trimmed at both ends, interior whitespace preserved. `key =` is the empty string.
+- Trimmed at both ends, interior whitespace preserved. `key :` is the empty string.
 - The first character must not be `@`, `{`, `[`, `}`, `]` or `"`; quote values that start with them.
 - Control characters are invalid in a bare string; quote and escape them.
 
@@ -130,19 +130,19 @@ The Java column is informative. The portable definitions and ranges are in [`LAN
 - A quoted **value** is EOL-delimited: its opening and closing `"` are the first and last quotes before optional trailing whitespace and an optional inline comment. Interior `"` characters are literal data; `\"` is still accepted and means the same thing. A closing quote is required on the line.
 - Escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f` and `\uXXXX` with surrogate pairs handled correctly.
 - Invalid escapes, isolated surrogates, unclosed quotes and literal control characters are errors.
-- Quoted **keys** keep their old rule: the first unescaped `"` closes the key, because a key ends at `=` rather than EOL. Interior quotes in keys must be written `\"`.
+- Quoted **keys** keep their old rule: the first unescaped `"` closes the key, because a key ends at `:` rather than EOL. Interior quotes in keys must be written `\"`.
 
 ```riffle
-literalMarker = "@int 123"
-literalComment = "# not a comment"
-"display name" = Jane Doe
-padded = "  keeps spaces  "
-multiline = "line one\nline two"
-a = "He said "hello""
-b = "He said \"hello\""
+literalMarker : "@int 123"
+literalComment : "# not a comment"
+"display name" : Jane Doe
+padded : "  keeps spaces  "
+multiline : "line one\nline two"
+a : "He said "hello""
+b : "He said \"hello\""
 ```
 
-Both `a` and `b` above decode to `He said "hello"`. When a value must be quoted, the canonical writer prefers the literal form. For quoted values, an inline comment is recognized before a later quote, so `k = "a # b" # comment "text"` has value `a # b`. When a value needs `" # text` or `" // text` as data, escape that interior quote: `k = "a\" # text"`. Keys keep emitting escaped interior quotes.
+Both `a` and `b` above decode to `He said "hello"`. When a value must be quoted, the canonical writer prefers the literal form. For quoted values, an inline comment is recognized before a later quote, so `k : "a # b" # comment "text"` has value `a # b`. When a value needs `" # text` or `" // text` as data, escape that interior quote: `k : "a\" # text"`. Keys keep emitting escaped interior quotes.
 
 The writer removes quotes that are not needed (`"display name"` keeps them, `Jane Doe` does not) and escapes line breaks.
 
@@ -150,13 +150,13 @@ The writer removes quotes that are not needed (`"display name"` keeps them, `Jan
 An untyped array holds one value per line and may mix kinds:
 
 ```riffle
-values = [
+values : [
     hello
     @int 123
     @boolean true
     @null
     {
-        name = example
+        name : example
     }
     [
         one
@@ -171,21 +171,21 @@ A bare `null` element is the string `"null"`; the null value is `@null`.
 `@type [` supplies the element type for immediate elements only, and `@type []` is an empty typed array. Element kinds are `string`, `int`, `long`, `decimal`, `boolean`, `null`, `map` and `array`.
 
 ```riffle
-ports = @int [
+ports : @int [
     8080
     8081
 ]
-flags = @boolean [
+flags : @boolean [
     true
     false
 ]
-servers = @map [
+servers : @map [
     {
-        host = a.example
+        host : a.example
     }
     {}
 ]
-rows = @array [
+rows : @array [
     [
         @int 1
     ]
@@ -198,24 +198,24 @@ rows = @array [
 
 Inside a typed array, elements are written without repeating the marker: `@int [` elements are integers, `@null [` elements are the literal word `null`, `@map [` elements are maps, and `@array [` elements are arrays or nested typed arrays. A typed array and an untyped array of the same typed elements are the same value, so `@int [\n 1\n]` equals `[\n @int 1\n]`.
 
-Typed arrays are authoring sugar: the canonical writer emits untyped arrays with `@type` elements, so `ports = @int [ … ]` is written as `ports = [` with `@int 8080` elements.
+Typed arrays are authoring sugar: the canonical writer emits untyped arrays with `@type` elements, so `ports : @int [ … ]` is written as `ports : [` with `@int 8080` elements.
 
 ### Rejected forms
 
 | Rejected | Write instead |
 | --- | --- |
-| `key {` / `key [` | `key = {` / `key = [` |
-| `key : value` | `key = value` |
+| `key {` / `key [` | `key : {` / `key : [` |
+| `key = value` | `key : value` |
 | a root wrapped in `{` … `}` | the implicit root map |
 | a root array | a map |
-| `x = { a = b }` | the map on following lines |
-| `x = { }` | `{}` or a block, with no interior spaces |
-| `x = [ one ]` | the elements on following lines |
+| `x : { a : b }` | the map on following lines |
+| `x : { }` | `{}` or a block, with no interior spaces |
+| `x : [ one ]` | the elements on following lines |
 | `@int` with no payload | `@int 42` |
 | `@null null` | `@null` |
 | `@float 1.0` | `@decimal 1.0` |
 | `@int "1"` | `@int 1` |
-| `x = {} y = 2` | one entry per line |
+| `x : {} y : 2` | one entry per line |
 | a lone CR | LF or CRLF |
 
 ### Limits

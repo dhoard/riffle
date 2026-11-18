@@ -1,9 +1,9 @@
-empty = ""
-stringTrue = true
-stringNull = null
-bareWithHash = https://example.org/a#fragment
-bareWithSlashes = path//segment
-"display name" = Jane Doe
-escaped = "line one\nline two ☺"
-literalAt = "@int 123"
-equals = a=b
+empty : ""
+stringTrue : true
+stringNull : null
+bareWithHash : https://example.org/a#fragment
+bareWithSlashes : path//segment
+"display name" : Jane Doe
+escaped : "line one\nline two ☺"
+literalAt : "@int 123"
+equals : a=b

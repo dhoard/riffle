@@ -16,7 +16,7 @@ Normative sections describe observable input, semantic values, canonical output,
 Core properties:
 
 - The document root is an **implicit, insertion-ordered map** of string keys to values.
-- A map member uses `key = value`; each member occupies **one logical line**, except that a collection value spans its own block of subsequent lines.
+- A map member uses `key : value`; each member occupies **one logical line**, except that a collection value spans its own block of subsequent lines.
 - An array contains one element per logical line, except that a collection element spans its own block.
 - `{` and `}` delimit maps; `[` and `]` delimit arrays; indentation has no syntactic significance.
 - No commas or semicolons delimit entries. A **newline**, not whitespace alone, terminates each entry.
@@ -28,16 +28,16 @@ Core properties:
 ## 2. Canonical example
 
 ```riffle
-schemaVersion = @int 1
-provider = chatgpt
-model = gpt-6-sol
-transport = chatgpt-oauth
-capabilities = {
-    tools = @boolean true
-    streaming = @boolean true
-    contextWindow = @int 272000
-    maxOutputTokens = @int 128000
-    reasoning = [
+schemaVersion : @int 1
+provider : chatgpt
+model : gpt-6-sol
+transport : chatgpt-oauth
+capabilities : {
+    tools : @boolean true
+    streaming : @boolean true
+    contextWindow : @int 272000
+    maxOutputTokens : @int 128000
+    reasoning : [
         none
         low
         medium
@@ -45,14 +45,14 @@ capabilities = {
         xhigh
         max
     ]
-    defaultReasoning = high
-    tokenizer = heuristic
-    replayRequirements = [
+    defaultReasoning : high
+    tokenizer : heuristic
+    replayRequirements : [
         chatgpt-oauth
     ]
 }
-options = {
-    chatgpt-oauth = {}
+options : {
+    chatgpt-oauth : {}
 }
 ```
 
@@ -130,17 +130,17 @@ Source locations, key paths, comments, original quoting, and original typed-arra
 
 ### 5.1 Bare strings
 
-Unless the value begins with a recognized structural delimiter or `@` typed expression, an unquoted value is a string. Leading and trailing horizontal whitespace are trimmed; interior whitespace is preserved. `key =` (including trailing spaces) denotes the empty string.
+Unless the value begins with a recognized structural delimiter or `@` typed expression, an unquoted value is a string. Leading and trailing horizontal whitespace are trimmed; interior whitespace is preserved. `key :` (including trailing spaces) denotes the empty string.
 
 Examples:
 
 ```riffle
-home = ~/projects
-url = https://example.org/a#fragment
-password = abc=123
-message = Hello: world
-name = null
-blank =
+home : ~/projects
+url : https://example.org/a#fragment
+password : abc=123
+message : Hello: world
+name : null
+blank :
 ```
 
 The first non-whitespace character of a **bare value or array element** MUST NOT be `@`, `{`, `[`, `}`, `]`, or `"` (these characters are syntactically reserved at that position). Quote strings that begin with them. These characters MAY appear later within a bare string, subject to the comment rules. A bare value consisting of `}` or `]` is always a closing delimiter when it appears alone on a collection line.
@@ -151,21 +151,21 @@ A bare string MUST NOT contain an unescaped ASCII control character (`U+0000`–
 
 A double-quoted string is allowed anywhere a string value or key is allowed. Its first and last non-whitespace syntactic characters are `"`. It MUST have no trailing characters other than whitespace or a valid inline comment.
 
-**Quoted values** (ordinary values, `@string` payloads, and elements of untyped or `@string` arrays) are EOL-delimited. The opening delimiter is the first `"` of the value fragment. The closing delimiter is the **last `"` of that fragment**, before optional trailing horizontal whitespace and an optional valid inline comment (comment precedence below). Every `"` inside the two delimiters is literal data, whether written literally or as `\"`; both spellings decode to the same quote character. The closing delimiter is a delimiter even when the immediately preceding character is a backslash, so `x = "abc\"` has a closing quote but an unfinished interior escape and is `INVALID_ESCAPE`. To end a value with a literal quote, write `x = "abc\""` or `x = "abc""`. A quoted value with no closing delimiter on its physical line is `UNTERMINATED_STRING`; escape validation applies only to the interior span.
+**Quoted values** (ordinary values, `@string` payloads, and elements of untyped or `@string` arrays) are EOL-delimited. The opening delimiter is the first `"` of the value fragment. The closing delimiter is the **last `"` of that fragment**, before optional trailing horizontal whitespace and an optional valid inline comment (comment precedence below). Every `"` inside the two delimiters is literal data, whether written literally or as `\"`; both spellings decode to the same quote character. The closing delimiter is a delimiter even when the immediately preceding character is a backslash, so `x : "abc\"` has a closing quote but an unfinished interior escape and is `INVALID_ESCAPE`. To end a value with a literal quote, write `x : "abc\""` or `x : "abc""`. A quoted value with no closing delimiter on its physical line is `UNTERMINATED_STRING`; escape validation applies only to the interior span.
 
-**Comment precedence for quoted values.** Scan the value's line from left to right for positions where an inline comment marker (`#` or `//`) is syntactically valid (marker at the start of the line or preceded by whitespace). The **first** such position whose preceding text, after trimming trailing horizontal whitespace, ends in a `"` and whose interior span decodes without error is the trailing comment; that `"` is the closing delimiter and quotes inside the excluded comment are ignored. If no position qualifies, the closing delimiter is the last `"` on the line. This rule gives a valid trailing-comment boundary priority over a later quote, so `k = "a # b" # comment "text"` has value `a # b`. It also makes a quoted body ending in `" # text` or `" // text` intentionally ambiguous: `k = "a" # text"` is read as value `a` followed by comment `# text"`. Use `\"` for that interior quote when the text is data: `k = "a\" # text"` has value `a" # text`. If no comment is selected, anything after the closing delimiter other than horizontal whitespace or a valid comment is `TRAILING_TOKENS`.
+**Comment precedence for quoted values.** Scan the value's line from left to right for positions where an inline comment marker (`#` or `//`) is syntactically valid (marker at the start of the line or preceded by whitespace). The **first** such position whose preceding text, after trimming trailing horizontal whitespace, ends in a `"` and whose interior span decodes without error is the trailing comment; that `"` is the closing delimiter and quotes inside the excluded comment are ignored. If no position qualifies, the closing delimiter is the last `"` on the line. This rule gives a valid trailing-comment boundary priority over a later quote, so `k : "a # b" # comment "text"` has value `a # b`. It also makes a quoted body ending in `" # text` or `" // text` intentionally ambiguous: `k : "a" # text"` is read as value `a` followed by comment `# text"`. Use `\"` for that interior quote when the text is data: `k : "a\" # text"` has value `a" # text`. If no comment is selected, anything after the closing delimiter other than horizontal whitespace or a valid comment is `TRAILING_TOKENS`.
 
-**Quoted keys are different and unchanged.** A key terminates at `=` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`. The EOL/last-quote rule and the comment precedence rule above apply only to values, not to keys.
+**Quoted keys are different and unchanged.** A key terminates at `:` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`. The EOL/last-quote rule and the comment precedence rule above apply only to values, not to keys.
 
 Supported escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f`, and `\uXXXX` (four ASCII hexadecimal digits). A `\uXXXX` escape denotes the code point with that value. An escape for a high surrogate MUST be immediately followed by an escape for a low surrogate; the pair denotes the corresponding supplementary code point. An isolated surrogate escape MUST be rejected with `INVALID_ESCAPE`. Invalid escape sequences and unclosed quotes MUST fail. Literal newlines, literal carriage returns, other unescaped control characters, and literal `U+FEFF` inside quoted strings are invalid; use `\uFEFF` for the last.
 
 Examples:
 
 ```riffle
-literalMarker = "@int 123"
-literalBrace = "{"
-literalComment = "# not a comment"
-"display name" = "Jane Doe"
+literalMarker : "@int 123"
+literalBrace : "{"
+literalComment : "# not a comment"
+"display name" : "Jane Doe"
 ```
 
 ### 5.3 Typed scalars
@@ -173,19 +173,19 @@ literalComment = "# not a comment"
 Typed scalars begin at the first non-whitespace character with `@` followed by one of the exact lowercase ASCII type identifiers. A horizontal-space separator is REQUIRED between `@int`, `@long`, `@decimal`, `@boolean`, or `@string` and its payload; `@null` has no payload. The payload terminates at the same EOL as the entry.
 
 ```riffle
-count = @int 123
-large = @long 9223372036854775807
-fraction = @decimal -0.125
-active = @boolean true
-text = @string true
-missing = @null
+count : @int 123
+large : @long 9223372036854775807
+fraction : @decimal -0.125
+active : @boolean true
+text : @string true
+missing : @null
 ```
 
 - Integers are base 10 with optional leading `-`, digits `0` or `[1-9][0-9]*`; `+`, underscores, hex, leading zeros except `0`, and decimal points are invalid.
 - Decimal payloads use the grammar `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?`. Thus `@decimal 12`, `@decimal -0.25`, and `@decimal 1e3` are valid, but `NaN`, `Infinity`, `.5`, and `1.` are not.
 - Booleans are lowercase `true` and `false` only.
-- `@null` MUST NOT be followed by a scalar payload. `missing = @null null` is invalid.
-- `@string` consumes either a quoted string or the remainder of the line as a bare string, applying the same comment and whitespace rules. It is primarily useful for clarity. The reserved-prefix rule of §5.1 applies to the first character of the value, not to the payload, so `text = @string @int 1` is the string `@int 1`.
+- `@null` MUST NOT be followed by a scalar payload. `missing : @null null` is invalid.
+- `@string` consumes either a quoted string or the remainder of the line as a bare string, applying the same comment and whitespace rules. It is primarily useful for clarity. The reserved-prefix rule of §5.1 applies to the first character of the value, not to the payload, so `text : @string @int 1` is the string `@int 1`.
 - `@int`, `@long`, `@decimal`, and `@boolean` MUST NOT accept quoted payloads or extra tokens.
 - Each type marker denotes a value, not a declaration for subsequent lines.
 
@@ -198,18 +198,18 @@ Type identifiers are case-sensitive. Unknown identifiers such as `@float` MUST f
 A root document consists of zero or more map entries. A nested map is opened with `{` and closed with `}`. Every entry has the form:
 
 ```riffle
-key = value
+key : value
 ```
 
-Exactly one `=` separates the key from the value. Additional `=` characters in an unquoted value are ordinary string characters. Spaces and tabs around the delimiter are optional: `key=value`, `key = value`, and `key= value` are equivalent.
+Exactly one `:` separates the key from the value; `=` has no separator meaning. Additional `:` characters in an unquoted value are ordinary string characters. Spaces and tabs around the delimiter are optional: `key:value`, `key : value`, and `key: value` are equivalent.
 
 ### 6.2 Keys
 
 - **Bare key:** matches `[A-Za-z0-9_][A-Za-z0-9_.-]*`. Examples: `provider`, `chatgpt-oauth`, `1`, `schema.version`.
-- **Quoted key:** a double-quoted string using the escape rules in §5.2. Use quotes for spaces, `=`, `#`, `/`, `@`, Unicode, or other characters outside the bare-key alphabet.
-- A quoted key MAY be empty: `"" = value` has the empty string as its key.
-- Keys are always strings. Thus `1 = value` has string key `"1"`; `@int 1 = value` is invalid.
-- A dot in a key is a literal dot, not a path separator. `a.b = x` and `a = { b = x }` are structurally different.
+- **Quoted key:** a double-quoted string using the escape rules in §5.2. Use quotes for spaces, `:`, `#`, `/`, `@`, Unicode, or other characters outside the bare-key alphabet.
+- A quoted key MAY be empty: `"" : value` has the empty string as its key.
+- Keys are always strings. Thus `1 : value` has string key `"1"`; `@int 1 : value` is invalid.
+- A dot in a key is a literal dot, not a path separator. `a.b : x` and `a : { b : x }` are structurally different.
 - A literal `U+FEFF` in a key is invalid; write `"\uFEFF"`.
 - Duplicate keys within the same map MUST be rejected. The same key may occur in different nested maps.
 - Key insertion order MUST be preserved in the semantic map model.
@@ -221,27 +221,27 @@ Exactly one `=` separates the key from the value. Additional `=` characters in a
 A map value is `{}` or a block opened by `{` and closed by `}`. Nested map entries follow exactly the same rules as root entries.
 
 ```riffle
-empty = {}
-server = {
-    host = localhost
-    port = @int 8080
+empty : {}
+server : {
+    host : localhost
+    port : @int 8080
 }
 ```
 
-`{ a = 1 }` is invalid: nonempty collections are multiline. A standalone map can appear as an array element with `{` on its own line.
+`{ a : 1 }` is invalid: nonempty collections are multiline. A standalone map can appear as an array element with `{` on its own line.
 
 ### 7.2 Untyped arrays
 
-An untyped array is `[]` or a block opened by `[` and closed by `]`. It contains exactly one value per element line. Elements MAY be mixed kinds or nested collections. A map entry's `=` is not used for array elements.
+An untyped array is `[]` or a block opened by `[` and closed by `]`. It contains exactly one value per element line. Elements MAY be mixed kinds or nested collections. A map entry's `:` is not used for array elements.
 
 ```riffle
-values = [
+values : [
     hello
     @int 123
     @boolean true
     @null
     {
-        name = example
+        name : example
     }
     [
         one
@@ -257,32 +257,32 @@ A bare array element `null` is the string `"null"`; a null element requires `@nu
 A typed array is a homogeneous authoring shorthand and validation constraint, written `@type [` for nonempty arrays or `@type []` for empty arrays. The supported element kinds are `string`, `int`, `long`, `decimal`, `boolean`, `null`, `map`, and `array`.
 
 ```riffle
-ports = @int [
+ports : @int [
     8080
     8081
 ]
-flags = @boolean [
+flags : @boolean [
     true
     false
 ]
-levels = @string [
+levels : @string [
     low
     medium
     high
 ]
-maybe = @null [
+maybe : @null [
     null
     null
 ]
-servers = @map [
+servers : @map [
     {
-        host = a.example
+        host : a.example
     }
     {
-        host = b.example
+        host : b.example
     }
 ]
-rows = @array [
+rows : @array [
     [
         @int 1
     ]
@@ -317,22 +317,22 @@ Two line-comment markers are supported: `#` and `//`.
 - A full-line comment begins after optional indentation with `#` or `//`.
 - An inline comment starts only when `#` or `//` is preceded by at least one ASCII space or tab and is outside a quoted string.
 - When no separating whitespace precedes a marker, it remains part of a bare string, including in `https://` URLs and `path#fragment`.
-- A `"` opens a quoted string only as the first character of a key or of a value. Elsewhere it is ordinary text, so in `k = he said "hi" # c` the marker starts a comment and the value is `he said "hi"`. For quoted values the closing delimiter and the first valid trailing-comment boundary are selected by the precedence rule in §5.2; quotes in the excluded comment are data of the comment, not of the value.
+- A `"` opens a quoted string only as the first character of a key or of a value. Elsewhere it is ordinary text, so in `k : he said "hi" # c` the marker starts a comment and the value is `he said "hi"`. For quoted values the closing delimiter and the first valid trailing-comment boundary are selected by the precedence rule in §5.2; quotes in the excluded comment are data of the comment, not of the value.
 - The characters following a comment marker up to the line ending are ignored.
 - Comments MAY follow entries, collection openers, and collection closers.
 
 ```riffle
 # configuration
-url = https://example.com/a#frag
-pattern = path//segment
-name = hello # comment
-port = @int 8080 // comment
-servers = [ # comment
+url : https://example.com/a#frag
+pattern : path//segment
+name : hello # comment
+port : @int 8080 // comment
+servers : [ # comment
     first
 ] # comment
 ```
 
-Important: `name = hello #world` has string value `"hello"`; quote it as `"hello #world"` if the entire text is intended. `name = hello#world` remains a bare string as written.
+Important: `name : hello #world` has string value `"hello"`; quote it as `"hello #world"` if the entire text is intended. `name : hello#world` remains a bare string as written.
 
 ## 9. Formal line-oriented grammar
 
@@ -340,7 +340,7 @@ This grammar describes the syntactic structure after splitting the UTF-8 input i
 
 ```ebnf
 Document         = { BlankOrComment | MapEntryLine } ;
-MapEntryLine      = S, Key, S, "=", S, ValueStart, S, EOL, [ Body ] ;
+MapEntryLine      = S, Key, S, ":", S, ValueStart, S, EOL, [ Body ] ;
 Key               = BareKey | QuotedString ;
 BareKey           = ( ASCII_LETTER | DIGIT | "_" ),
                     { ASCII_LETTER | DIGIT | "_" | "." | "-" } ;
@@ -390,7 +390,7 @@ A conforming parser can be implemented as a line scanner plus a stack:
 1. Decode UTF-8, normalize CRLF to LF for line scanning, and track original line/column positions.
 2. Start with a root map context.
 3. For each line, identify comments without treating markers inside quotes or adjacent to unquoted non-whitespace characters as comments; skip empty/comment-only lines.
-4. In a map context, parse one key, `=`, then a single value start; in an array context, parse one element value start; in a typed-array context, parse an element according to its declared kind.
+4. In a map context, parse one key, `:`, then a single value start; in an array context, parse one element value start; in a typed-array context, parse an element according to its declared kind.
 5. If the value starts a nonempty block, insert its collection node at that position and push its map/array context. Do not complete the parent entry a second time when closing the block.
 6. On a standalone matching closer, pop the current context. Reject mismatched and root-level closers.
 7. At EOF, require the stack to contain only the root map context.
@@ -412,7 +412,7 @@ The following categories and their triggering conditions are normative:
 | `INVALID_ESCAPE` | An unsupported quoted-string escape, malformed `\uXXXX`, or isolated surrogate escape |
 | `UNTERMINATED_STRING` | A quoted string has no closing quote on its line |
 | `INVALID_KEY` | A map key is neither a bare key nor a valid quoted key |
-| `MISSING_EQUALS` | A map entry has no `=`, or a key is not followed by one |
+| `MISSING_COLON` | A map entry has no `:`, or a key is not followed by one |
 | `MISSING_VALUE` | A typed value has no payload |
 | `TRAILING_TOKENS` | Noncomment characters remain after a complete value or closer |
 | `INVALID_VALUE` | A bare value starts with a reserved character |
@@ -445,7 +445,7 @@ Canonical output bytes MUST be:
 
 ### 11.2 Value rendering
 
-- A map root emits one `key = value` line per entry in insertion order.
+- A map root emits one `key : value` line per entry in insertion order, with exactly one space before and one space after the colon.
 - An array emits one element per line in element order.
 - `{}` and `[]` are emitted for empty collections; nonempty collections use multiline block syntax.
 - Bare strings and bare keys are emitted only when they can be parsed back to the same string without ambiguity. Otherwise the serializer emits a quoted string using exactly the escapes in §5.2. A quoted **value** emits interior `"` literally, except where a literal quote immediately followed by a literal space and a comment marker would become a closing delimiter under §5.2; that quote is emitted as `\"` instead. Tabs and other control characters are emitted as escapes and therefore cannot form that boundary. Quoted **keys** keep emitting interior quotes as `\"`.
@@ -522,32 +522,32 @@ Riffle's value model can be mapped to JSON objects, arrays, strings, numbers, bo
 
 ```riffle
 # blank string, literal strings, explicit null
-empty =
-stringTrue = true
-stringNull = null
-stringTilde = ~
-booleanTrue = @boolean true
-nullValue = @null
-literalAt = "@null"
+empty :
+stringTrue : true
+stringNull : null
+stringTilde : ~
+booleanTrue : @boolean true
+nullValue : @null
+literalAt : "@null"
 
 # quoted key and punctuation
-"key with spaces" = a=b
-url = https://example.org/a#fragment
+"key with spaces" : a=b
+url : https://example.org/a#fragment
 
 # empty collections
-emptyMap = {}
-emptyArray = []
-emptyInts = @int []
+emptyMap : {}
+emptyArray : []
+emptyInts : @int []
 
 # nested values and mixed array
-complex = {
-    items = [
+complex : {
+    items : [
         text
         @long 9000000000
         @decimal 1.25
         @null
         {
-            enabled = @boolean false
+            enabled : @boolean false
         }
         [
             nested
@@ -556,7 +556,7 @@ complex = {
 }
 
 # homogeneous array
-ports = @int [
+ports : @int [
     80
     443
 ]
@@ -568,28 +568,28 @@ Expected notable distinctions: `stringTrue` is a string, not a boolean; `stringN
 
 | Input | Required failure |
 | --- | --- |
-| `x = 1 y = 2` | One-entry-per-line rule; this is not two entries (it is a single string value). To test two entries on one line use `x = {} y = 2`, which fails `TRAILING_TOKENS`. |
-| `x = @int` | Missing typed payload |
-| `x = @int 01` | Invalid integer lexical syntax |
-| `x = @int 2147483648` | 32-bit overflow |
-| `x = @boolean yes` | Invalid boolean |
-| `x = @null null` | Extra payload |
-| `x = @float 1.0` | Unknown type |
-| `x = @int "1"` | Quoted numeric payload forbidden |
-| `x = { a = b }` | Nonempty inline map forbidden |
-| `x = [ one ]` | Nonempty inline array forbidden |
-| `x = @int [ 1 ]` | Nonempty inline typed array forbidden |
-| `x = { }` | Empty collection with interior whitespace; write `{}` or a block |
-| `x = [\n  @int 1\n}` | Mismatched closing delimiter |
-| `x = @int [\n  @int 1\n]` | Repeated explicit scalar annotation in typed array |
-| `x = @int [\n  text\n]` | Invalid int element |
-| `x = @map [\n  hello\n]` | Expected map element |
-| `x = @null [\n  hello\n]` | Expected literal `null` element |
-| `x = a\nx = b` | Duplicate key |
-| `@int 1 = a` | Invalid map key |
-| `x = "abc` | Unterminated string |
-| `x = "bad\\q"` | Invalid escape |
-| `x = {\n y = z` | Unclosed map at EOF |
+| `x : 1 y : 2` | One-entry-per-line rule; this is not two entries (it is a single string value). To test two entries on one line use `x : {} y : 2`, which fails `TRAILING_TOKENS`. |
+| `x : @int` | Missing typed payload |
+| `x : @int 01` | Invalid integer lexical syntax |
+| `x : @int 2147483648` | 32-bit overflow |
+| `x : @boolean yes` | Invalid boolean |
+| `x : @null null` | Extra payload |
+| `x : @float 1.0` | Unknown type |
+| `x : @int "1"` | Quoted numeric payload forbidden |
+| `x : { a : b }` | Nonempty inline map forbidden |
+| `x : [ one ]` | Nonempty inline array forbidden |
+| `x : @int [ 1 ]` | Nonempty inline typed array forbidden |
+| `x : { }` | Empty collection with interior whitespace; write `{}` or a block |
+| `x : [\n  @int 1\n}` | Mismatched closing delimiter |
+| `x : @int [\n  @int 1\n]` | Repeated explicit scalar annotation in typed array |
+| `x : @int [\n  text\n]` | Invalid int element |
+| `x : @map [\n  hello\n]` | Expected map element |
+| `x : @null [\n  hello\n]` | Expected literal `null` element |
+| `x : a\nx : b` | Duplicate key |
+| `@int 1 : a` | Invalid map key |
+| `x : "abc` | Unterminated string |
+| `x : "bad\\q"` | Invalid escape |
+| `x : {\n y : z` | Unclosed map at EOF |
 
 ### 14.3 Required test categories
 

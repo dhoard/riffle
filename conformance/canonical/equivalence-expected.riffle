@@ -1,4 +1,4 @@
-ports = [
+ports : [
     @int 80
     @int 443
 ]

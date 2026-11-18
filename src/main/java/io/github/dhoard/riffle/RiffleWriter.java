@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * Writes the canonical form of a document: LF line endings, four-space indentation,
- * {@code key = value} entries, {@code @type} markers for non-string scalars, {@code {}} and
+ * {@code key : value} entries, {@code @type} markers for non-string scalars, {@code {}} and
  * {@code []} for empty collections, and quotes only where a bare key or value would be read
  * differently. Package-private by design.
  *
@@ -29,7 +29,7 @@ final class RiffleWriter {
     private void entries(RiffleObject object, int level) {
         for (Map.Entry<String, RiffleValue> entry : object.entries().entrySet()) {
             indent(level);
-            out.append(key(entry.getKey())).append(" = ");
+            out.append(key(entry.getKey())).append(" : ");
             value(entry.getValue(), level);
         }
     }

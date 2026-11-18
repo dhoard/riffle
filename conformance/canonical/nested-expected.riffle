@@ -1,17 +1,17 @@
-server = {
-    endpoints = [
+server : {
+    endpoints : [
         {
-            host = a.example
-            port = @int 8080
+            host : a.example
+            port : @int 8080
         }
         {
-            host = b.example
-            port = @long 9000
+            host : b.example
+            port : @long 9000
         }
     ]
-    options = {
-        retries = @int 3
-        labels = [
+    options : {
+        retries : @int 3
+        labels : [
             primary
             @null
         ]

@@ -61,7 +61,7 @@ class ResourceLimitsTest {
     void anInlineEmptyCollectionDoesNotCountTowardsTheLimit() {
         RiffleObject value = mapChain(128, RiffleObject.of(Map.of()));
         String written = Riffle.write(value);
-        assertThat(written).contains("k0 = {}");
+        assertThat(written).contains("k0 : {}");
         assertThat(Riffle.parse(written)).isEqualTo(value);
     }
 
@@ -82,7 +82,7 @@ class ResourceLimitsTest {
     void wideDocumentsAreAccepted() {
         StringBuilder document = new StringBuilder();
         for (int i = 0; i < 20_000; i++) {
-            document.append('k').append(i).append(" = @int ").append(i).append('\n');
+            document.append('k').append(i).append(" : @int ").append(i).append('\n');
         }
         assertThat(Riffle.parse(document.toString()).entries()).hasSize(20_000);
     }
@@ -90,14 +90,14 @@ class ResourceLimitsTest {
     @Test
     void longLinesAreAccepted() {
         String text = "x".repeat(100_000);
-        RiffleObject parsed = Riffle.parse("long = " + text + "\n");
+        RiffleObject parsed = Riffle.parse("long : " + text + "\n");
         assertThat(parsed.get("long").asString()).isEqualTo(text);
-        assertThat(Riffle.write(parsed)).isEqualTo("long = " + text + "\n");
+        assertThat(Riffle.write(parsed)).isEqualTo("long : " + text + "\n");
     }
 
     @Test
     void manyArrayElementsAreAccepted() {
-        StringBuilder document = new StringBuilder("a = [\n");
+        StringBuilder document = new StringBuilder("a : [\n");
         for (int i = 0; i < 20_000; i++) {
             document.append("    @int ").append(i).append('\n');
         }

@@ -32,13 +32,13 @@ class DecimalSerializationTest {
 
     @Test
     void ordinaryDecimalsKeepPlainNotation() {
-        assertThat(write(new BigDecimal("0.25"))).isEqualTo("d = @decimal 0.25\n");
-        assertThat(write(new BigDecimal("-0.0001"))).isEqualTo("d = @decimal -0.0001\n");
-        assertThat(write(new BigDecimal("1"))).isEqualTo("d = @decimal 1\n");
-        assertThat(write(new BigDecimal("1.0"))).isEqualTo("d = @decimal 1\n");
-        assertThat(write(new BigDecimal("0.000"))).isEqualTo("d = @decimal 0\n");
-        assertThat(write(new BigDecimal("1e3"))).isEqualTo("d = @decimal 1000\n");
-        assertThat(write(BigDecimal.valueOf(1234, 2))).isEqualTo("d = @decimal 12.34\n");
+        assertThat(write(new BigDecimal("0.25"))).isEqualTo("d : @decimal 0.25\n");
+        assertThat(write(new BigDecimal("-0.0001"))).isEqualTo("d : @decimal -0.0001\n");
+        assertThat(write(new BigDecimal("1"))).isEqualTo("d : @decimal 1\n");
+        assertThat(write(new BigDecimal("1.0"))).isEqualTo("d : @decimal 1\n");
+        assertThat(write(new BigDecimal("0.000"))).isEqualTo("d : @decimal 0\n");
+        assertThat(write(new BigDecimal("1e3"))).isEqualTo("d : @decimal 1000\n");
+        assertThat(write(BigDecimal.valueOf(1234, 2))).isEqualTo("d : @decimal 12.34\n");
     }
 
     /**
@@ -48,9 +48,9 @@ class DecimalSerializationTest {
      */
     @Test
     void extremeExponentsAreWrittenInExponentNotation() {
-        assertThat(write(new BigDecimal("1e2147483647"))).isEqualTo("d = @decimal 1E+2147483647\n");
-        assertThat(write(new BigDecimal("1e-2147483646"))).isEqualTo("d = @decimal 1E-2147483646\n");
-        assertThat(write(new BigDecimal("10e2147483647"))).isEqualTo("d = @decimal 1E+2147483648\n");
+        assertThat(write(new BigDecimal("1e2147483647"))).isEqualTo("d : @decimal 1E+2147483647\n");
+        assertThat(write(new BigDecimal("1e-2147483646"))).isEqualTo("d : @decimal 1E-2147483646\n");
+        assertThat(write(new BigDecimal("10e2147483647"))).isEqualTo("d : @decimal 1E+2147483648\n");
     }
 
     @Test
@@ -59,16 +59,16 @@ class DecimalSerializationTest {
         String digits256 = "1".repeat(256);
         String digits257 = "1".repeat(257);
 
-        assertThat(write(new BigDecimal(digits255))).isEqualTo("d = @decimal " + digits255 + "\n");
-        assertThat(write(new BigDecimal(digits256))).isEqualTo("d = @decimal " + digits256 + "\n");
-        assertThat(write(new BigDecimal(digits257))).isEqualTo("d = @decimal 1." + "1".repeat(256) + "E+256\n");
-        assertThat(write(new BigDecimal("-" + digits256))).isEqualTo("d = @decimal -1." + "1".repeat(255) + "E+255\n");
+        assertThat(write(new BigDecimal(digits255))).isEqualTo("d : @decimal " + digits255 + "\n");
+        assertThat(write(new BigDecimal(digits256))).isEqualTo("d : @decimal " + digits256 + "\n");
+        assertThat(write(new BigDecimal(digits257))).isEqualTo("d : @decimal 1." + "1".repeat(256) + "E+256\n");
+        assertThat(write(new BigDecimal("-" + digits256))).isEqualTo("d : @decimal -1." + "1".repeat(255) + "E+255\n");
     }
 
     @Test
     void smallValuesUseTheSamePlainThreshold() {
-        assertThat(write(new BigDecimal("1e-254"))).isEqualTo("d = @decimal 0." + "0".repeat(253) + "1\n");
-        assertThat(write(new BigDecimal("1e-255"))).isEqualTo("d = @decimal 1E-255\n");
+        assertThat(write(new BigDecimal("1e-254"))).isEqualTo("d : @decimal 0." + "0".repeat(253) + "1\n");
+        assertThat(write(new BigDecimal("1e-255"))).isEqualTo("d : @decimal 1E-255\n");
     }
 
     static Stream<Arguments> extremeDecimals() {
@@ -90,22 +90,22 @@ class DecimalSerializationTest {
 
     @Test
     void parsingAnExtremeExponentTokenRoundTrips() {
-        RiffleObject parsed = Riffle.parse("d = @decimal 1e2147483647\n");
-        assertThat(Riffle.write(parsed)).isEqualTo("d = @decimal 1E+2147483647\n");
+        RiffleObject parsed = Riffle.parse("d : @decimal 1e2147483647\n");
+        assertThat(Riffle.write(parsed)).isEqualTo("d : @decimal 1E+2147483647\n");
         assertThat(Riffle.parse(Riffle.write(parsed))).isEqualTo(parsed);
 
-        RiffleObject normalizedFromTrailingZeros = Riffle.parse("d = @decimal 10e2147483647\n");
-        assertThat(Riffle.write(normalizedFromTrailingZeros)).isEqualTo("d = @decimal 1E+2147483648\n");
+        RiffleObject normalizedFromTrailingZeros = Riffle.parse("d : @decimal 10e2147483647\n");
+        assertThat(Riffle.write(normalizedFromTrailingZeros)).isEqualTo("d : @decimal 1E+2147483648\n");
         assertThat(Riffle.parse(Riffle.write(normalizedFromTrailingZeros))).isEqualTo(normalizedFromTrailingZeros);
     }
 
     @Test
     void anExponentBeyondTheRepresentableRangeIsAParseError() {
-        assertThatThrownBy(() -> Riffle.parse("d = @decimal 1e-2147483648\n"))
+        assertThatThrownBy(() -> Riffle.parse("d : @decimal 1e-2147483648\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.NUMBER_OUT_OF_RANGE));
-        assertThatThrownBy(() -> Riffle.parse("d = @decimal 1e2147483649\n"))
+        assertThatThrownBy(() -> Riffle.parse("d : @decimal 1e2147483649\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.NUMBER_OUT_OF_RANGE));
@@ -113,7 +113,7 @@ class DecimalSerializationTest {
 
     @Test
     void aDecimalWhoseNormalizedFormIsOutOfRangeIsAParseError() {
-        assertThatThrownBy(() -> Riffle.parse("d = @decimal 10e2147483648\n"))
+        assertThatThrownBy(() -> Riffle.parse("d : @decimal 10e2147483648\n"))
                 .isInstanceOfSatisfying(
                         RiffleParseException.class,
                         e -> assertThat(e.category()).isEqualTo(RiffleError.NUMBER_OUT_OF_RANGE));
@@ -131,7 +131,7 @@ class DecimalSerializationTest {
 
     @Test
     void parseErrorsDoNotEchoTheDecimalPayload() {
-        assertThatThrownBy(() -> Riffle.parse("d = @decimal 1e-2147483648\n"))
+        assertThatThrownBy(() -> Riffle.parse("d : @decimal 1e-2147483648\n"))
                 .isInstanceOf(RiffleParseException.class)
                 .hasMessageNotContaining("2147483648");
     }
