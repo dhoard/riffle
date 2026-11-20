@@ -1,0 +1,3 @@
+name : gateway
+port : 1.5
+command : run

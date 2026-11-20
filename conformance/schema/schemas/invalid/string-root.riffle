@@ -1,0 +1,4 @@
+riffleSchema : 1
+root : {
+    type : string
+}

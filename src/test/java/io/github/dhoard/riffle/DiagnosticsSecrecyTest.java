@@ -53,6 +53,111 @@ class DiagnosticsSecrecyTest {
         });
     }
 
+    /**
+     * A schema that exercises the categories of SCHEMA_SPEC.md §10 which have to talk about a value:
+     * each holds the value it rejects, so none may print it.
+     */
+    private static final String CONSTRAINTD_SCHEMA = """
+            riffleSchema : 1
+            root : {
+                type : map
+                keys : {
+                    text : {
+                        type : string
+                        pattern : "[a-z]+"
+                        notBlank : true
+                        optional : true
+                    }
+                    number : {
+                        type : integer
+                        min : 1024
+                        optional : true
+                    }
+                    amount : {
+                        type : decimal
+                        optional : true
+                    }
+                    flag : {
+                        type : boolean
+                        optional : true
+                    }
+                    choice : {
+                        type : string
+                        values : [
+                            alpha
+                            beta
+                        ]
+                        optional : true
+                    }
+                    list : {
+                        type : array
+                        unique : true
+                        items : {
+                            type : string
+                        }
+                        optional : true
+                    }
+                    nested : {
+                        type : map
+                        keys : {
+                            inner : {
+                                type : string
+                                notBlank : true
+                            }
+                        }
+                        optional : true
+                    }
+                }
+                minKeys : 2
+                rules : [
+                    {
+                        rule : requires
+                        key : text
+                        keys : [
+                            choice
+                        ]
+                    }
+                ]
+            }
+            """;
+
+    static List<String> documentsHoldingARejectedValue() {
+        return List.of(
+                "text : " + SECRET + "\nflag : true\n",
+                "number : " + SECRET + "\nflag : true\n",
+                "number : 99999999999999999999999\nflag : true\n",
+                "amount : " + SECRET + "\nflag : true\n",
+                "flag : " + SECRET + "\ntext : lower\n",
+                "choice : " + SECRET + "\nflag : true\n",
+                "list : [\n    " + SECRET + "\n    " + SECRET + "\n]\nflag : true\n",
+                "nested : {}\nflag : true\n",
+                "unknown : " + SECRET + "\nflag : true\n",
+                "text : " + SECRET + "\n",
+                "flag : not-a-boolean\n");
+    }
+
+    @ParameterizedTest
+    @MethodSource("documentsHoldingARejectedValue")
+    void validationProblemsNeverRepeatTheValue(String document) {
+        RiffleSchema schema = RiffleSchema.parse(CONSTRAINTD_SCHEMA);
+        RiffleObject parsed = Riffle.parse(document);
+
+        List<RiffleProblem> problems = schema.validate(parsed);
+
+        assertThat(problems).as("problems with %s", document).isNotEmpty();
+        for (RiffleProblem problem : problems) {
+            assertThat(problem.reason()).doesNotContain(SECRET);
+            assertThat(problem.path().toString()).doesNotContain(SECRET);
+            assertThat(problem.toString()).doesNotContain(SECRET);
+        }
+        assertThatThrownBy(() -> Riffle.parse(document, schema))
+                .isInstanceOf(RiffleValidationException.class)
+                .hasMessageNotContaining(SECRET);
+        assertThatThrownBy(() -> schema.applyDefaults(parsed))
+                .isInstanceOf(RiffleValidationException.class)
+                .hasMessageNotContaining(SECRET);
+    }
+
     @Test
     void accessErrorsNeverContainTheValue() {
         String tooLarge = "99999999999999999999";

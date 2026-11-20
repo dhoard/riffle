@@ -1,0 +1,48 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        text : {
+            type : string
+            minLength : 3
+            maxLength : 8
+            notBlank : true
+            pattern : "[a-z]+"
+        }
+        count : {
+            type : integer
+            min : -10
+            max : 10
+            optional : true
+        }
+        ratio : {
+            type : decimal
+            optional : true
+        }
+        enabled : {
+            type : boolean
+            optional : true
+        }
+        stage : {
+            type : string
+            values : [
+                dev
+                staging
+                prod
+            ]
+        }
+        codes : {
+            type : integer
+            values : [
+                0
+                200
+                404
+            ]
+            optional : true
+        }
+        free : {
+            type : any
+            optional : true
+        }
+    }
+}

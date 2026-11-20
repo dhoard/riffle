@@ -1,0 +1,22 @@
+riffleSchema : 1
+definitions : {
+    left : {
+        type : ref
+        definition : right
+    }
+    right : {
+        type : ref
+        definition : left
+    }
+    away : {
+        type : string
+    }
+    nowhere : {
+        type : ref
+        definition : absent
+    }
+}
+root : {
+    type : ref
+    definition : left
+}

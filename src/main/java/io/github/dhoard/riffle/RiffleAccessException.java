@@ -15,7 +15,7 @@ public final class RiffleAccessException extends RiffleException {
     /** The stable error category. */
     private final RiffleAccessError category;
     /** The key path, or {@code null} when unknown. */
-    private final String path;
+    private final RifflePath path;
     /** The source location, or {@code null} for constructed values. */
     private final RiffleLocation location;
 
@@ -51,7 +51,7 @@ public final class RiffleAccessException extends RiffleException {
                 value.location().orElse(null));
     }
 
-    RiffleAccessException(RiffleAccessError category, String reason, String path, RiffleLocation location) {
+    RiffleAccessException(RiffleAccessError category, String reason, RifflePath path, RiffleLocation location) {
         super(format(reason, path, location), reason);
         this.category = category;
         this.path = path;
@@ -70,9 +70,9 @@ public final class RiffleAccessException extends RiffleException {
     /**
      * Returns the key path of the value, such as {@code capabilities.reasoning[2]}.
      *
-     * @return the path; the root is the empty string; empty when unknown
+     * @return the path; the root path for a document root; empty when unknown
      */
-    public Optional<String> path() {
+    public Optional<RifflePath> path() {
         return Optional.ofNullable(path);
     }
 
@@ -92,13 +92,13 @@ public final class RiffleAccessException extends RiffleException {
         return reason;
     }
 
-    private static String format(String reason, String path, RiffleLocation location) {
+    private static String format(String reason, RifflePath path, RiffleLocation location) {
         StringBuilder message = new StringBuilder();
         if (location != null) {
             message.append(location).append(": ");
         }
         if (path != null) {
-            message.append(path.isEmpty() ? "(root)" : path).append(": ");
+            message.append(path).append(": ");
         }
         return message.append(reason).toString();
     }

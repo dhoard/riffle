@@ -1,0 +1,15 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        name : {
+            type : string
+        }
+    }
+    otherKeys : {
+        type : string
+    }
+    keyPattern : "[a-z][a-z0-9]*"
+    minKeys : 1
+    maxKeys : 4
+}

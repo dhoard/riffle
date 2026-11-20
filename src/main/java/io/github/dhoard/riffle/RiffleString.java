@@ -6,10 +6,10 @@ import java.util.Optional;
 /** An immutable string value, written bare or quoted. */
 public final class RiffleString implements RiffleValue {
     private final String text;
-    private final String path;
+    private final RifflePath path;
     private final RiffleLocation location;
 
-    RiffleString(String text, String path, RiffleLocation location) {
+    RiffleString(String text, RifflePath path, RiffleLocation location) {
         this.text = text;
         this.path = path;
         this.location = location;
@@ -49,7 +49,7 @@ public final class RiffleString implements RiffleValue {
     }
 
     @Override
-    public Optional<String> path() {
+    public Optional<RifflePath> path() {
         return Optional.ofNullable(path);
     }
 

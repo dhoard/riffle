@@ -1,0 +1,14 @@
+primary : {
+    host : a
+    port : 1
+}
+backup : {
+    host : b
+    port : 2
+}
+all : [
+    {
+        host : c
+        port : 3
+    }
+]

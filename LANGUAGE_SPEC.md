@@ -15,6 +15,8 @@ The normative terms **MUST**, **MUST NOT**, **SHOULD**, and **MAY** have their u
 
 Normative sections describe observable input, semantic values, canonical output, errors, and limits. Host-language type names appear only in non-normative appendices and in the implementation guide, never as part of the language definition.
 
+Schema validation is specified separately by [`SCHEMA_SPEC.md`](SCHEMA_SPEC.md), the Riffle Schema Specification. A conforming language implementation need not offer it; an implementation that does offer schema validation MUST conform to that specification as well.
+
 Core properties:
 
 - The document root is an **implicit, insertion-ordered map** of string keys to values.
@@ -171,7 +173,7 @@ query : """
 6. **Line joining.** Content lines are joined with LF, whatever the source line endings. There is no newline after the last content line. An opener immediately followed by a closer is the empty string. To end the value with a newline, leave an empty last content line.
 7. **Characters.** Horizontal tab (`U+0009`) is allowed literally in content. Other control characters (`U+0000`–`U+001F` except tab, and `U+007F`) and a literal `U+FEFF` are `INVALID_CHARACTER`. A lone CR is `INVALID_LINE_ENDING`.
 8. **Unterminated.** End of document inside a raw block is `UNTERMINATED_STRING`, reported at the opener.
-9. **Nesting.** A raw block does not count toward the nesting limit (§12).
+9. **Nesting.** A raw block does not count toward a host-configured nesting limit (§12).
 
 Because the closer decides how content lines are read, a parser locates the closer first. An unterminated block is therefore reported as `UNTERMINATED_STRING` even when its content has other faults. Content faults are then reported in line order, and within one line `INVALID_CHARACTER` takes precedence over `INVALID_INDENTATION`.
 
@@ -235,7 +237,7 @@ values : [
 
 ### 7.3 Collection boundaries
 
-Every opener MUST have a matching closer of the same kind. The parser MUST reject mismatched, missing, unexpected, and extra closing delimiters. Nesting is limited by the portable resource limit in §12.
+Every opener MUST have a matching closer of the same kind. The parser MUST reject mismatched, missing, unexpected, and extra closing delimiters. Nesting is bounded only by available memory unless a host supplies the optional limit in §12.
 
 ## 8. Comments
 
@@ -371,9 +373,20 @@ The following categories and their triggering conditions are normative:
 | `UNCLOSED_COLLECTION` | The document ended inside a collection |
 | `UNCLOSED_COMMENT` | The document ended inside a block comment; reported at the outermost unclosed `/#` |
 | `UNSUPPORTED_INLINE_COLLECTION` | A value starting with `{` or `[` is neither an opener nor an empty collection, or an empty collection had interior whitespace |
-| `RESOURCE_LIMIT_EXCEEDED` | The nesting limit in §12 was exceeded |
+| `RESOURCE_LIMIT_EXCEEDED` | A host-configured nesting limit in §12 was exceeded |
 
 The error location for a mismatch SHOULD point to the offending element or token; an unclosed collection SHOULD report the location of its opener.
+
+### 10.1 Path syntax
+
+When a diagnostic names the value it is about, it uses a **path**: a sequence of key segments and array-index segments that addresses one value inside the document. The syntax is normative, because conformance manifests and schema problems address values with it too.
+
+- A key segment is written **bare** when it matches `[A-Za-z0-9_][A-Za-z0-9_-]*`, and **quoted** otherwise, using exactly the quoting and escaping the canonical serializer uses for a key (§11.2). A dot is a path separator, so a key that holds a dot is always quoted.
+- Key segments after the first are preceded by `.`.
+- An array-index segment is `[n]` in decimal and follows the segment that addressed the array.
+- The root is the empty path, and is displayed as `(root)`.
+
+A path is therefore unambiguous. `"a.b"` is the single key `a.b`, `a.b` is the key `b` inside the key `a`, and `servers[0]."display name"` is the `display name` entry of the first element of `servers`. Keys that hold a `[`, a `"`, a space, or a character outside the bare alphabet are quoted for the same reason.
 
 Errors raised while reading a parsed value use the access categories of §13.3.
 
@@ -404,15 +417,15 @@ Canonical output bytes MUST be:
 - Every literal `U+FEFF` in a key or string is emitted as `﻿`.
 - Canonical output MUST reparse to an equal semantic value tree. Serialization MUST NOT change kind, order, or text.
 - The root is a map; a serializer MUST reject an array root rather than emit a document that cannot be reparsed.
-- A value tree nesting deeper than §12 has no valid document; a serializer MUST reject it rather than emit text a conforming parser must refuse.
+- A serializer MUST accept any value tree that fits available memory. When a caller supplies a nesting limit, the serializer MUST reject a tree deeper than that limit.
 
 ## 12. Resource limits
 
-The following limit is part of the portable 0.1.0 contract:
+Riffle 0.1.0 has no portable nesting limit. A parser and a canonical serializer MUST accept collections nested as deeply as available memory permits, and MUST traverse them without recursion that can exhaust the host stack.
 
-- **Nesting depth:** at most 128 nonempty collections between the root map and any value. The root map itself does not count. An inline empty collection does not open a block and does not count, and neither does a raw block. A document exceeding the limit MUST be rejected with `RESOURCE_LIMIT_EXCEEDED`; a canonical serializer MUST reject a value tree exceeding it.
+A host MAY supply an optional maximum nesting depth. The limit counts nonempty collections between the root map and a value; the root map itself, an inline empty collection, and a raw block do not count. A document that exceeds a configured limit MUST be rejected with `RESOURCE_LIMIT_EXCEEDED`, and a serializer given the same limit MUST reject a deeper value tree. The way a host supplies and enforces that limit is outside the portable syntax contract.
 
-Implementations MAY impose additional documented limits on total input size, line length, string length, or output size. Such limits MUST NOT reject any fixture in the conformance suite or otherwise change the meaning of a conforming document within the portable limits. There is no mandatory document-size limit.
+Implementations MAY impose additional documented limits on total input size, line length, string length, or output size. Such limits MUST NOT reject any fixture in the conformance suite or otherwise change the meaning of a conforming document. There is no mandatory document-size limit.
 
 ## 13. Value interpretation
 
@@ -463,6 +476,8 @@ Access errors use these stable categories. The categories are portable; how a ho
 | `INVALID_FORMAT` | The string does not match the requested interpretation's grammar |
 | `OUT_OF_RANGE` | The string matches the grammar but is outside the requested range |
 | `INVALID_VALUE` | An application-defined conversion failed |
+
+Access errors report the path of the value in the syntax of §10.1 and, when the value was parsed, its location; a value built in code rather than parsed has neither, and an implementation omits what it does not have. A missing member is reported at the path it would have had.
 
 Access diagnostics MUST NOT contain scalar values.
 
@@ -561,7 +576,6 @@ The following are deliberately excluded:
 - Inline block comments: a block-comment region occupies whole lines and never appears inside a logical line (§8.2).
 - Alternate line-comment markers such as `//`, which is ordinary text (§8.1).
 - Inline or trailing comments of any kind: a comment occupies a whole line, so `k : v # note` gives the string `v # note` and `k : "v" # note` is rejected (§8.1).
-- Schemas, declared types or ranges, and validation beyond syntax and the interpretations of §13.
 - Dot-path assignment semantics, duplicate-key merging, substitution, includes, environment expansion, expressions, and conditionals.
 - Interpretations beyond §13, such as dates, durations, or application-specific scalars. Applications define their own over strings.
 
@@ -595,7 +609,7 @@ This appendix describes the Java reference implementation only. It is informativ
 | decimal | `BigDecimal`, through `asDecimal()`, normalized with `stripTrailingZeros()` |
 | boolean | `boolean`, through `asBoolean()` |
 
-Java columns count UTF-16 code units; other host languages may count Unicode code points or bytes. Parsing a `Path` uses a strict UTF-8 decoder and reports malformed input as `INVALID_UTF8`. Parsing a Java `String` rejects unpaired surrogates with the same category. Access errors are `RiffleAccessException`, whose `category()` returns a `RiffleAccessError` with the categories of §13.3.
+Java columns count UTF-16 code units; other host languages may count Unicode code points or bytes. Parsing a `Path` uses a strict UTF-8 decoder and reports malformed input as `INVALID_UTF8`. Parsing a Java `String` rejects unpaired surrogates with the same category. Access errors are `RiffleAccessException`, whose `category()` returns a `RiffleAccessError` with the categories of §13.3. A path of §10.1 is a `RifflePath`: `RiffleValue.path()` and `RiffleAccessException.path()` return an `Optional<RifflePath>`, and `RifflePath.toString()` renders the syntax of §10.1. The schema types are documented in `SCHEMA_SPEC.md`, not here.
 
 The optional `RiffleJavaValues` adapter maps strings, maps, and arrays to `String`, `Map<String, Object>`, and `List<Object>`. In the other direction it also accepts `Integer`, `Long`, `BigDecimal`, and `Boolean`, which become text that the matching accessor accepts. A `BigDecimal` is rendered in plain notation up to 256 characters and in scientific notation beyond that. The adapter rejects `null`.
 

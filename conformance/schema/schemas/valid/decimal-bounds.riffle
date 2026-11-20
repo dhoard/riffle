@@ -1,0 +1,27 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        rate : {
+            type : decimal
+            min : 0
+            max : 1
+            maxExclusive : true
+        }
+        offset : {
+            type : decimal
+            min : -1.5
+            minExclusive : true
+            optional : true
+        }
+        scale : {
+            type : decimal
+            values : [
+                1
+                1.5
+                100
+            ]
+            optional : true
+        }
+    }
+}

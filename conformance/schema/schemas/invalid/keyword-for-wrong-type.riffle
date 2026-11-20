@@ -1,0 +1,5 @@
+riffleSchema : 1
+root : {
+    type : integer
+    minLength : 3
+}

@@ -1,0 +1,68 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        command : {
+            type : string
+            optional : true
+        }
+        url : {
+            type : string
+            optional : true
+        }
+        timeout : {
+            type : integer
+            optional : true
+        }
+        retries : {
+            type : integer
+            optional : true
+        }
+        stage : {
+            type : string
+            optional : true
+        }
+        stages : {
+            type : array
+            optional : true
+            items : {
+                type : string
+            }
+        }
+    }
+    rules : [
+        {
+            rule : exactlyOne
+            keys : [
+                command
+                url
+            ]
+        }
+        {
+            rule : atMostOne
+            keys : [
+                timeout
+                retries
+            ]
+        }
+        {
+            rule : allOrNone
+            keys : [
+                stage
+                stages
+            ]
+        }
+        {
+            rule : requires
+            key : stage
+            keys : [
+                stages
+            ]
+        }
+        {
+            rule : memberOf
+            key : stage
+            array : stages
+        }
+    ]
+}

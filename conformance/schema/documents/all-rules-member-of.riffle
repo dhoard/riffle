@@ -1,0 +1,6 @@
+command : run
+stage : prod
+stages : [
+    dev
+    testing
+]

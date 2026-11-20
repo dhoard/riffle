@@ -10,17 +10,24 @@ import java.util.Optional;
 /** An immutable, insertion-ordered map from string keys to values. */
 public final class RiffleObject implements RiffleContainer {
     private final Map<String, RiffleValue> entries;
-    private final String path;
+    private final Map<String, RiffleLocation> keyLocations;
+    private final RifflePath path;
     private final RiffleLocation location;
 
-    RiffleObject(LinkedHashMap<String, RiffleValue> entries, String path, RiffleLocation location) {
+    RiffleObject(
+            LinkedHashMap<String, RiffleValue> entries,
+            LinkedHashMap<String, RiffleLocation> keyLocations,
+            RifflePath path,
+            RiffleLocation location) {
         this.entries = Collections.unmodifiableMap(entries);
+        this.keyLocations = keyLocations == null ? Map.of() : Collections.unmodifiableMap(keyLocations);
         this.path = path;
         this.location = location;
     }
 
     /**
-     * Creates a map holding a copy of {@code entries}, in their iteration order.
+     * Creates a map holding a copy of {@code entries}, in their iteration order. The values have
+     * no source location and no path, because they were built in code.
      *
      * @param entries the entries
      * @return the map
@@ -40,7 +47,7 @@ public final class RiffleObject implements RiffleContainer {
             }
             copy.put(key, Objects.requireNonNull(value, "value"));
         });
-        return new RiffleObject(copy, null, null);
+        return new RiffleObject(copy, null, null, null);
     }
 
     /**
@@ -55,7 +62,10 @@ public final class RiffleObject implements RiffleContainer {
         RiffleValue value = entries.get(key);
         if (value == null) {
             throw new RiffleAccessException(
-                    RiffleAccessError.MISSING, "missing", Syntax.memberPath(path, key), location);
+                    RiffleAccessError.MISSING,
+                    "missing",
+                    RifflePath.orRoot(path).key(key),
+                    location);
         }
         return value;
     }
@@ -157,13 +167,21 @@ public final class RiffleObject implements RiffleContainer {
         return entries;
     }
 
+    /**
+     * Returns where {@code key} was written, for diagnostics that report a key rather than its
+     * value. Keys of a map built in code have no location.
+     */
+    RiffleLocation keyLocation(String key) {
+        return keyLocations.get(key);
+    }
+
     @Override
     public Optional<RiffleLocation> location() {
         return Optional.ofNullable(location);
     }
 
     @Override
-    public Optional<String> path() {
+    public Optional<RifflePath> path() {
         return Optional.ofNullable(path);
     }
 
@@ -173,16 +191,16 @@ public final class RiffleObject implements RiffleContainer {
      */
     @Override
     public boolean equals(Object other) {
-        return other instanceof RiffleObject that && entries.equals(that.entries);
+        return other instanceof RiffleObject that && ValueEquality.equal(this, that);
     }
 
     @Override
     public int hashCode() {
-        return entries.hashCode();
+        return ValueHash.hash(this);
     }
 
     @Override
     public String toString() {
-        return "RiffleObject" + entries;
+        return ValuePrinter.toString(this);
     }
 }

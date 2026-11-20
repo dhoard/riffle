@@ -40,7 +40,7 @@ class ValueAccessTest {
         assertThatThrownBy(() -> root.get("a").asObject().get("c"))
                 .isInstanceOfSatisfying(RiffleAccessException.class, e -> {
                     assertThat(e.getMessage()).isEqualTo("line 1, column 5: a.c: missing");
-                    assertThat(e.path()).contains("a.c");
+                    assertThat(e.path()).contains(RifflePath.root().key("a").key("c"));
                     assertThat(e.category()).isEqualTo(RiffleAccessError.MISSING);
                 });
     }
@@ -163,7 +163,7 @@ class ValueAccessTest {
                 .isInstanceOfSatisfying(RiffleAccessException.class, e -> {
                     assertThat(e.getMessage())
                             .isEqualTo("line 1, column 11: timeout: expected an ISO-8601 duration such as PT30S");
-                    assertThat(e.path()).contains("timeout");
+                    assertThat(e.path()).contains(RifflePath.root().key("timeout"));
                 });
         assertThatThrownBy(() -> new RiffleAccessException(value, " ")).isInstanceOf(IllegalArgumentException.class);
     }

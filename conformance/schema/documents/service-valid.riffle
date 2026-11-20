@@ -1,0 +1,6 @@
+name : gateway
+port : 8443
+command : run
+env : {
+    STAGE : prod
+}

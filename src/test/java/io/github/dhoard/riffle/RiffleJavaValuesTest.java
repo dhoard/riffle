@@ -221,11 +221,12 @@ class RiffleJavaValuesTest {
     }
 
     @Test
-    void nestingLimitsAreEnforcedBeforeCreatingAnUnwritableTree() {
-        assertThatThrownBy(() -> RiffleJavaValues.fromJava(mapChain(130)))
+    void deepJavaTreesConvertAndAConfiguredCapIsEnforced() {
+        RiffleObject deep = RiffleJavaValues.fromJava(mapChain(1_000));
+        assertThat(RiffleJavaValues.toJava(deep)).isInstanceOf(Map.class);
+        assertThatThrownBy(() -> RiffleJavaValues.fromJava(mapChain(130), RiffleOptions.maxDepth(128)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("128");
-        assertThat(RiffleJavaValues.fromJava(mapChain(129))).isInstanceOf(RiffleObject.class);
     }
 
     private static Map<String, Object> mapChain(int depth) {

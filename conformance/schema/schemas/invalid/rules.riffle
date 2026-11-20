@@ -1,0 +1,56 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        a : {
+            type : integer
+            optional : true
+        }
+        b : {
+            type : string
+        }
+        c : {
+            type : string
+            optional : true
+        }
+        numbers : {
+            type : array
+            optional : true
+            items : {
+                type : integer
+            }
+        }
+    }
+    rules : [
+        {
+            rule : exactlyOne
+            keys : [
+                a
+            ]
+        }
+        {
+            rule : exactlyOne
+            keys : [
+                a
+                b
+            ]
+        }
+        {
+            rule : requires
+            key : missing
+            keys : [
+                c
+            ]
+        }
+        {
+            rule : memberOf
+            key : a
+            array : numbers
+        }
+        {
+            rule : memberOf
+            key : a
+            array : nothing
+        }
+    ]
+}

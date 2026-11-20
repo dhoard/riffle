@@ -1,5 +1,7 @@
 package io.github.dhoard.riffle;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -210,5 +212,43 @@ final class Json {
 
     private IllegalArgumentException error(String reason) {
         return new IllegalArgumentException("manifest JSON at offset " + at + ": " + reason);
+    }
+
+    /**
+     * Returns {@code value} as an object, failing the test when it is not one.
+     *
+     * @param value the parsed value
+     * @return the object
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> object(Object value) {
+        assertThat(value).isInstanceOf(Map.class);
+        return (Map<String, Object>) value;
+    }
+
+    /**
+     * Returns {@code value} as an array, or an empty list when it is absent.
+     *
+     * @param value the parsed value
+     * @return the array
+     */
+    @SuppressWarnings("unchecked")
+    static List<Object> array(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        assertThat(value).isInstanceOf(List.class);
+        return (List<Object>) value;
+    }
+
+    /**
+     * Returns {@code value} as a string, failing the test when it is not one.
+     *
+     * @param value the parsed value
+     * @return the string
+     */
+    static String string(Object value) {
+        assertThat(value).isInstanceOf(String.class);
+        return (String) value;
     }
 }

@@ -1,0 +1,5 @@
+name : {
+    first : gateway
+}
+port : 80
+command : run

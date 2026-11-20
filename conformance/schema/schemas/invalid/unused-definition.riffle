@@ -1,0 +1,9 @@
+riffleSchema : 1
+definitions : {
+    unused : {
+        type : any
+    }
+}
+root : {
+    type : map
+}

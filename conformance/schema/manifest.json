@@ -1,0 +1,970 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "schema.valid.all-rules",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/all-rules.riffle"
+    },
+    {
+      "id": "schema.valid.any-keys",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/any-keys.riffle"
+    },
+    {
+      "id": "schema.valid.decimal-bounds",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/decimal-bounds.riffle"
+    },
+    {
+      "id": "schema.valid.defaults",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/defaults.riffle"
+    },
+    {
+      "id": "schema.valid.key-pattern-and-keys",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/key-pattern-and-keys.riffle"
+    },
+    {
+      "id": "schema.valid.kind-union",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/kind-union.riffle"
+    },
+    {
+      "id": "schema.valid.recursive-tree",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/recursive-tree.riffle"
+    },
+    {
+      "id": "schema.valid.scalar-types",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/scalar-types.riffle"
+    },
+    {
+      "id": "schema.valid.service",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/service.riffle"
+    },
+    {
+      "id": "schema.valid.shared-ref",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/shared-ref.riffle"
+    },
+    {
+      "id": "schema.valid.tagged-shapes",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/tagged-shapes.riffle"
+    },
+    {
+      "id": "schema.valid.unique-arrays",
+      "expectation": "schema-valid",
+      "schema": "schemas/valid/unique-arrays.riffle"
+    },
+    {
+      "id": "schema.invalid.bad-default",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/bad-default.riffle",
+      "problems": [
+        {
+          "category": "INVALID_DEFAULT",
+          "path": "root.keys.port.default",
+          "line": 9
+        },
+        {
+          "category": "INVALID_DEFAULT",
+          "path": "root.keys.name.default",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.bad-pattern",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/bad-pattern.riffle",
+      "problems": [
+        {
+          "category": "INVALID_PATTERN",
+          "path": "root.pattern",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.combinations",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/combinations.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.a",
+          "line": 5
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.b",
+          "line": 13
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.c",
+          "line": 20
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.d",
+          "line": 28
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.e",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.default-without-optional",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/default-without-optional.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.a",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.empty-range",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/empty-range.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.exclusive-flag-without-bound",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/exclusive-flag-without-bound.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.keyword-for-wrong-type",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/keyword-for-wrong-type.riffle",
+      "problems": [
+        {
+          "category": "UNKNOWN_KEY",
+          "path": "root.minLength",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.missing-version",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/missing-version.riffle",
+      "problems": [
+        {
+          "category": "MISSING",
+          "path": "riffleSchema",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.negative-count",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/negative-count.riffle",
+      "problems": [
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "root.minLength",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.optional-off-a-member",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/optional-off-a-member.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root",
+          "line": 2
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.items",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.optional-on-a-definition",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/optional-on-a-definition.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "definitions.name",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.pattern-no-other-keys",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/pattern-no-other-keys.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.rules",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/rules.riffle",
+      "problems": [
+        {
+          "category": "INVALID_RULE",
+          "path": "root.rules[0]",
+          "line": 25
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.string-root",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/string-root.riffle",
+      "problems": [
+        {
+          "category": "INVALID_ROOT",
+          "path": "root",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.structure",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/structure.riffle",
+      "problems": [
+        {
+          "category": "UNKNOWN_KEY",
+          "path": "root.keys.a.minValue",
+          "line": 11
+        },
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "root.keys.b.minKeys",
+          "line": 15
+        },
+        {
+          "category": "MISSING",
+          "path": "root.keys.c.items",
+          "line": 17
+        },
+        {
+          "category": "UNKNOWN_KEY",
+          "path": "root.tyep",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.unions",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/unions.riffle",
+      "problems": [
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.shape.cases.circle",
+          "line": 9
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.mode",
+          "line": 31
+        },
+        {
+          "category": "INVALID_CONSTRAINT",
+          "path": "root.keys.value.map",
+          "line": 39
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.unknown-and-circular",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/unknown-and-circular.riffle",
+      "problems": [
+        {
+          "category": "UNKNOWN_DEFINITION",
+          "path": "definitions.nowhere.type",
+          "line": 15
+        },
+        {
+          "category": "UNUSED_DEFINITION",
+          "path": "definitions.away",
+          "line": 11
+        },
+        {
+          "category": "UNUSED_DEFINITION",
+          "path": "definitions.nowhere",
+          "line": 14
+        },
+        {
+          "category": "CIRCULAR_DEFINITION",
+          "path": "definitions.left.type",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.unknown-top-level-key",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/unknown-top-level-key.riffle",
+      "problems": [
+        {
+          "category": "UNKNOWN_KEY",
+          "path": "version",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.unknown-type",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/unknown-type.riffle",
+      "problems": [
+        {
+          "category": "NOT_ALLOWED",
+          "path": "root.type",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.unsupported-version",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/unsupported-version.riffle",
+      "problems": [
+        {
+          "category": "UNSUPPORTED_VERSION",
+          "path": "riffleSchema",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "schema.invalid.unused-definition",
+      "expectation": "schema-invalid",
+      "schema": "schemas/invalid/unused-definition.riffle",
+      "problems": [
+        {
+          "category": "UNUSED_DEFINITION",
+          "path": "definitions.unused",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.all-rules-member-of",
+      "expectation": "document",
+      "schema": "schemas/valid/all-rules.riffle",
+      "input": "documents/all-rules-member-of.riffle",
+      "problems": [
+        {
+          "category": "RULE_VIOLATION",
+          "path": "stage",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "document.all-rules-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/all-rules.riffle",
+      "input": "documents/all-rules-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.all-rules-violations",
+      "expectation": "document",
+      "schema": "schemas/valid/all-rules.riffle",
+      "input": "documents/all-rules-violations.riffle",
+      "problems": [
+        {
+          "category": "RULE_VIOLATION",
+          "path": "(root)",
+          "line": 1
+        },
+        {
+          "category": "RULE_VIOLATION",
+          "path": "(root)",
+          "line": 1
+        },
+        {
+          "category": "RULE_VIOLATION",
+          "path": "(root)",
+          "line": 1
+        },
+        {
+          "category": "RULE_VIOLATION",
+          "path": "(root)",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.defaults-bad",
+      "expectation": "document",
+      "schema": "schemas/valid/defaults.riffle",
+      "input": "documents/defaults-bad.riffle",
+      "problems": [
+        {
+          "category": "INVALID_FORMAT",
+          "path": "port",
+          "line": 1
+        },
+        {
+          "category": "INVALID_FORMAT",
+          "path": "options.verbose",
+          "line": 3
+        },
+        {
+          "category": "INVALID_FORMAT",
+          "path": "options.level",
+          "line": 4
+        },
+        {
+          "category": "MISSING",
+          "path": "name",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.defaults-partial",
+      "expectation": "document",
+      "schema": "schemas/valid/defaults.riffle",
+      "input": "documents/defaults-partial.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.defaults-present",
+      "expectation": "document",
+      "schema": "schemas/valid/defaults.riffle",
+      "input": "documents/defaults-present.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.key-pattern-and-keys-too-many",
+      "expectation": "document",
+      "schema": "schemas/valid/key-pattern-and-keys.riffle",
+      "input": "documents/key-pattern-and-keys-too-many.riffle",
+      "problems": [
+        {
+          "category": "INVALID_SIZE",
+          "path": "(root)",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.key-pattern-and-keys-unknown-and-pattern",
+      "expectation": "document",
+      "schema": "schemas/valid/key-pattern-and-keys.riffle",
+      "input": "documents/key-pattern-and-keys-unknown-and-pattern.riffle",
+      "problems": [
+        {
+          "category": "PATTERN_MISMATCH",
+          "path": "Other",
+          "line": 2
+        },
+        {
+          "category": "WRONG_KIND",
+          "path": "extra",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.key-pattern-and-keys-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/key-pattern-and-keys.riffle",
+      "input": "documents/key-pattern-and-keys-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.kind-union-format",
+      "expectation": "document",
+      "schema": "schemas/valid/kind-union.riffle",
+      "input": "documents/kind-union-format.riffle",
+      "problems": [
+        {
+          "category": "INVALID_FORMAT",
+          "path": "mode",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.kind-union-map",
+      "expectation": "document",
+      "schema": "schemas/valid/kind-union.riffle",
+      "input": "documents/kind-union-map.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.kind-union-missing-alternative",
+      "expectation": "document",
+      "schema": "schemas/valid/kind-union.riffle",
+      "input": "documents/kind-union-missing-alternative.riffle",
+      "problems": [
+        {
+          "category": "WRONG_KIND",
+          "path": "label",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "document.kind-union-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/kind-union.riffle",
+      "input": "documents/kind-union-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.meta-schema-self",
+      "expectation": "document",
+      "schema": "meta-schema.riffle",
+      "input": "meta-schema.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.recursive-tree-deep-problem",
+      "expectation": "document",
+      "schema": "schemas/valid/recursive-tree.riffle",
+      "input": "documents/recursive-tree-deep-problem.riffle",
+      "problems": [
+        {
+          "category": "WRONG_KIND",
+          "path": "children[0].children[0].children[0]",
+          "line": 8
+        },
+        {
+          "category": "MISSING",
+          "path": "children[0].children[0].name",
+          "line": 6
+        }
+      ]
+    },
+    {
+      "id": "document.recursive-tree-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/recursive-tree.riffle",
+      "input": "documents/recursive-tree-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.scalar-types-boolean-format",
+      "expectation": "document",
+      "schema": "schemas/valid/scalar-types.riffle",
+      "input": "documents/scalar-types-boolean-format.riffle",
+      "problems": [
+        {
+          "category": "INVALID_FORMAT",
+          "path": "enabled",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.scalar-types-integer-range",
+      "expectation": "document",
+      "schema": "schemas/valid/scalar-types.riffle",
+      "input": "documents/scalar-types-integer-range.riffle",
+      "problems": [
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "count",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.scalar-types-length",
+      "expectation": "document",
+      "schema": "schemas/valid/scalar-types.riffle",
+      "input": "documents/scalar-types-length.riffle",
+      "problems": [
+        {
+          "category": "INVALID_LENGTH",
+          "path": "text",
+          "line": 1
+        },
+        {
+          "category": "BLANK",
+          "path": "text",
+          "line": 1
+        },
+        {
+          "category": "PATTERN_MISMATCH",
+          "path": "text",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.scalar-types-text-kind",
+      "expectation": "document",
+      "schema": "schemas/valid/scalar-types.riffle",
+      "input": "documents/scalar-types-text-kind.riffle",
+      "problems": [
+        {
+          "category": "WRONG_KIND",
+          "path": "text",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.scalar-types-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/scalar-types.riffle",
+      "input": "documents/scalar-types-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.scalar-types-values",
+      "expectation": "document",
+      "schema": "schemas/valid/scalar-types.riffle",
+      "input": "documents/scalar-types-values.riffle",
+      "problems": [
+        {
+          "category": "NOT_ALLOWED",
+          "path": "stage",
+          "line": 2
+        },
+        {
+          "category": "NOT_ALLOWED",
+          "path": "codes",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.service-both-endpoints",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-both-endpoints.riffle",
+      "problems": [
+        {
+          "category": "RULE_VIOLATION",
+          "path": "(root)",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.service-env-array",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-env-array.riffle",
+      "problems": [
+        {
+          "category": "WRONG_KIND",
+          "path": "env",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.service-invalid",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-invalid.riffle",
+      "problems": [
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "port",
+          "line": 1
+        },
+        {
+          "category": "PATTERN_MISMATCH",
+          "path": "env.region",
+          "line": 5
+        },
+        {
+          "category": "PATTERN_MISMATCH",
+          "path": "env.lower_key",
+          "line": 6
+        },
+        {
+          "category": "UNKNOWN_KEY",
+          "path": "extra",
+          "line": 8
+        },
+        {
+          "category": "MISSING",
+          "path": "name",
+          "line": 1
+        },
+        {
+          "category": "RULE_VIOLATION",
+          "path": "(root)",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.service-nothing",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-nothing.riffle",
+      "problems": [
+        {
+          "category": "BLANK",
+          "path": "name",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.service-port-format",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-port-format.riffle",
+      "problems": [
+        {
+          "category": "INVALID_FORMAT",
+          "path": "port",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "document.service-port-range",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-port-range.riffle",
+      "problems": [
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "port",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "document.service-url-pattern",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-url-pattern.riffle",
+      "problems": [
+        {
+          "category": "PATTERN_MISMATCH",
+          "path": "url",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "document.service-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.service-wrong-kind",
+      "expectation": "document",
+      "schema": "schemas/valid/service.riffle",
+      "input": "documents/service-wrong-kind.riffle",
+      "problems": [
+        {
+          "category": "WRONG_KIND",
+          "path": "name",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.shared-ref-inner-unknown",
+      "expectation": "document",
+      "schema": "schemas/valid/shared-ref.riffle",
+      "input": "documents/shared-ref-inner-unknown.riffle",
+      "problems": [
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "primary.port",
+          "line": 3
+        },
+        {
+          "category": "UNKNOWN_KEY",
+          "path": "primary.extra",
+          "line": 4
+        },
+        {
+          "category": "BLANK",
+          "path": "all[0].host",
+          "line": 8
+        },
+        {
+          "category": "OUT_OF_RANGE",
+          "path": "all[0].port",
+          "line": 9
+        }
+      ]
+    },
+    {
+      "id": "document.shared-ref-missing-members",
+      "expectation": "document",
+      "schema": "schemas/valid/shared-ref.riffle",
+      "input": "documents/shared-ref-missing-members.riffle",
+      "problems": [
+        {
+          "category": "MISSING",
+          "path": "primary.port",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.shared-ref-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/shared-ref.riffle",
+      "input": "documents/shared-ref-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.tagged-shapes-array",
+      "expectation": "document",
+      "schema": "schemas/valid/tagged-shapes.riffle",
+      "input": "documents/tagged-shapes-array.riffle",
+      "problems": [
+        {
+          "category": "WRONG_KIND",
+          "path": "shape",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.tagged-shapes-inner-missing",
+      "expectation": "document",
+      "schema": "schemas/valid/tagged-shapes.riffle",
+      "input": "documents/tagged-shapes-inner-missing.riffle",
+      "problems": [
+        {
+          "category": "MISSING",
+          "path": "shape.radius",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.tagged-shapes-no-kind",
+      "expectation": "document",
+      "schema": "schemas/valid/tagged-shapes.riffle",
+      "input": "documents/tagged-shapes-no-kind.riffle",
+      "problems": [
+        {
+          "category": "MISSING",
+          "path": "shape.kind",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "document.tagged-shapes-unknown-kind",
+      "expectation": "document",
+      "schema": "schemas/valid/tagged-shapes.riffle",
+      "input": "documents/tagged-shapes-unknown-kind.riffle",
+      "problems": [
+        {
+          "category": "NOT_ALLOWED",
+          "path": "shape.kind",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "id": "document.tagged-shapes-valid",
+      "expectation": "document",
+      "schema": "schemas/valid/tagged-shapes.riffle",
+      "input": "documents/tagged-shapes-valid.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.unique-distinct",
+      "expectation": "document",
+      "schema": "schemas/valid/unique-arrays.riffle",
+      "input": "documents/unique-distinct.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.unique-duplicate",
+      "expectation": "document",
+      "schema": "schemas/valid/unique-arrays.riffle",
+      "input": "documents/unique-duplicate.riffle",
+      "problems": [
+        {
+          "category": "DUPLICATE",
+          "path": "values[1]",
+          "line": 3
+        }
+      ]
+    },
+    {
+      "id": "document.unique-key-duplicate",
+      "expectation": "document",
+      "schema": "schemas/valid/unique-arrays.riffle",
+      "input": "documents/unique-key-duplicate.riffle",
+      "problems": [
+        {
+          "category": "DUPLICATE",
+          "path": "servers[2]",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "id": "document.unique-key-undeclared-distinct",
+      "expectation": "document",
+      "schema": "schemas/valid/unique-key-undeclared.riffle",
+      "input": "documents/unique-key-undeclared-distinct.riffle",
+      "problems": []
+    },
+    {
+      "id": "document.unique-key-undeclared-duplicate",
+      "expectation": "document",
+      "schema": "schemas/valid/unique-key-undeclared.riffle",
+      "input": "documents/unique-key-undeclared-duplicate.riffle",
+      "problems": [
+        {
+          "category": "DUPLICATE",
+          "path": "values[1]",
+          "line": 7
+        }
+      ]
+    }
+  ]
+}

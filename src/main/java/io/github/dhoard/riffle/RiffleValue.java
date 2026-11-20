@@ -26,9 +26,9 @@ public sealed interface RiffleValue permits RiffleContainer, RiffleString {
      * Returns the key path of this value within its parsed document, such as
      * {@code capabilities.reasoning[2]}.
      *
-     * @return the path; the root is the empty string; empty for values constructed in code
+     * @return the path; the root path for a document root; empty for values constructed in code
      */
-    Optional<String> path();
+    Optional<RifflePath> path();
 
     /**
      * Returns whether this value is a map, so that {@link #asObject()} succeeds.

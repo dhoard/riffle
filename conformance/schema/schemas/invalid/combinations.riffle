@@ -1,0 +1,44 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        a : {
+            type : string
+            values : [
+                x
+                y
+            ]
+            minLength : 1
+        }
+        b : {
+            type : decimal
+            values : [
+                1
+                1.0
+            ]
+        }
+        c : {
+            type : array
+            items : {
+                type : string
+            }
+            unique : true
+            uniqueKey : id
+        }
+        d : {
+            type : map
+            keys : {
+                n : {
+                    type : string
+                }
+            }
+            keyPattern : x
+        }
+        e : {
+            type : decimal
+            min : 5
+            max : 1
+            minExclusive : true
+        }
+    }
+}

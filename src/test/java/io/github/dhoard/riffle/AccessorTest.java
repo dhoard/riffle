@@ -261,12 +261,12 @@ class AccessorTest {
 
         assertThatThrownBy(() -> root.getInt("big")).isInstanceOfSatisfying(RiffleAccessException.class, e -> {
             assertThat(e.category()).isEqualTo(RiffleAccessError.OUT_OF_RANGE);
-            assertThat(e.path()).contains("big");
+            assertThat(e.path()).contains(RifflePath.root().key("big"));
             assertThat(e.getMessage()).startsWith("line 5, column 7: big: ");
         });
         assertThatThrownBy(() -> array.getBoolean(0)).isInstanceOfSatisfying(RiffleAccessException.class, e -> {
             assertThat(e.category()).isEqualTo(RiffleAccessError.INVALID_FORMAT);
-            assertThat(e.path()).contains("a[0]");
+            assertThat(e.path()).contains(RifflePath.root().key("a").index(0));
         });
         assertThatThrownBy(() -> root.getString("m")).isInstanceOfSatisfying(RiffleAccessException.class, e -> {
             assertThat(e.category()).isEqualTo(RiffleAccessError.WRONG_KIND);
@@ -274,12 +274,12 @@ class AccessorTest {
         });
         assertThatThrownBy(() -> root.getInt("absent")).isInstanceOfSatisfying(RiffleAccessException.class, e -> {
             assertThat(e.category()).isEqualTo(RiffleAccessError.MISSING);
-            assertThat(e.path()).contains("absent");
+            assertThat(e.path()).contains(RifflePath.root().key("absent"));
         });
         assertThatThrownBy(() -> array.getString(array.size()))
                 .isInstanceOfSatisfying(RiffleAccessException.class, e -> {
                     assertThat(e.category()).isEqualTo(RiffleAccessError.MISSING);
-                    assertThat(e.path()).contains("a[5]");
+                    assertThat(e.path()).contains(RifflePath.root().key("a").index(5));
                 });
     }
 

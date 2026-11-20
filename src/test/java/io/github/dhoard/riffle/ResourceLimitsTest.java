@@ -8,9 +8,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * The nesting limit is a single policy: the parser rejects deeper documents and the writer
- * refuses to produce one. Documents that are large only in width or line length are accepted,
- * because the parser's memory use stays proportional to the input.
+ * Nesting is unbounded by default; a caller can opt into a cap that the parser and writer enforce.
+ * Documents that are large only in width or line length are accepted, because time and memory stay
+ * proportional to the input.
  */
 class ResourceLimitsTest {
 
@@ -33,49 +33,47 @@ class ResourceLimitsTest {
     }
 
     @Test
-    void aTreeAtTheNestingLimitCanBeWrittenAndParsed() {
-        RiffleObject value = mapChain(128, RiffleString.of("leaf"));
+    void aDeepTreeRoundTripsWithoutAConfiguredCap() {
+        RiffleObject value = mapChain(10_000, RiffleString.of("leaf"));
+
         String written = Riffle.write(value);
-        assertThat(Riffle.parse(written)).isEqualTo(value);
-        assertThat(Riffle.write(Riffle.parse(written))).isEqualTo(written);
+        RiffleObject parsed = Riffle.parse(written);
+
+        assertThat(parsed).isEqualTo(value);
+        assertThat(parsed.hashCode()).isEqualTo(value.hashCode());
+        assertThat(parsed.toString()).isEqualTo(value.toString());
+        assertThat(Riffle.write(parsed)).isEqualTo(written);
     }
 
     @Test
-    void mixedMapsAndArraysAtTheNestingLimitCanBeWrittenAndParsed() {
-        RiffleObject value = mixedChain(128);
+    void mixedMapsAndArraysRoundTripWithoutACap() {
+        RiffleObject value = mixedChain(2_000);
         assertThat(Riffle.parse(Riffle.write(value))).isEqualTo(value);
     }
 
     @Test
-    void aTreeBeyondTheNestingLimitIsRejectedInsteadOfProducingUnparseableText() {
-        assertThatThrownBy(() -> Riffle.write(mapChain(129, RiffleString.of("leaf"))))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("nesting")
-                .hasMessageContaining("128");
-        assertThatThrownBy(() -> Riffle.write(mixedChain(129)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("128");
-    }
-
-    @Test
-    void anInlineEmptyCollectionDoesNotCountTowardsTheLimit() {
-        RiffleObject value = mapChain(128, RiffleObject.of(Map.of()));
+    void aConfiguredCapIsEnforcedByTheParserAndTheWriter() {
+        RiffleObject value = mapChain(128, RiffleString.of("leaf"));
         String written = Riffle.write(value);
-        assertThat(written).contains("k0 : {}");
-        assertThat(Riffle.parse(written)).isEqualTo(value);
+
+        assertThat(Riffle.parse(written, RiffleOptions.maxDepth(128))).isEqualTo(value);
+        assertThatThrownBy(() -> Riffle.write(mapChain(129, RiffleString.of("leaf")), RiffleOptions.maxDepth(128)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("128");
+        assertThatThrownBy(() ->
+                        Riffle.parse(Riffle.write(mapChain(129, RiffleString.of("leaf"))), RiffleOptions.maxDepth(128)))
+                .isInstanceOfSatisfying(RiffleParseException.class, e -> {
+                    assertThat(e.category()).isEqualTo(RiffleError.RESOURCE_LIMIT_EXCEEDED);
+                    assertThat(e.location().line()).isEqualTo(129);
+                });
     }
 
     @Test
-    void aVeryDeepTreeFailsWithoutStackOverflow() {
-        assertThatThrownBy(() -> Riffle.write(mapChain(20_000, RiffleString.of("leaf"))))
-                .isInstanceOf(IllegalArgumentException.class);
-        RiffleValue value = RiffleString.of("leaf");
-        for (int i = 0; i < 20_000; i++) {
-            value = RiffleArray.of(List.of(value));
-        }
-        RiffleArray deep = RiffleArray.of(List.of(value));
-        assertThatThrownBy(() -> Riffle.write(RiffleObject.of(Map.of("root", deep))))
-                .isInstanceOf(IllegalArgumentException.class);
+    void anInlineEmptyCollectionDoesNotCountTowardACap() {
+        RiffleObject value = mapChain(128, RiffleObject.of(Map.of()));
+        String written = Riffle.write(value, RiffleOptions.maxDepth(128));
+        assertThat(written).contains("k0 : {}");
+        assertThat(Riffle.parse(written, RiffleOptions.maxDepth(128))).isEqualTo(value);
     }
 
     @Test

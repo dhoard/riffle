@@ -127,13 +127,13 @@ class ParserRejectionTest {
     }
 
     @Test
-    void nestingBeyondTheLimitIsReportedAtTheOpener() {
+    void nestingBeyondAConfiguredCapIsReportedAtTheOpener() {
         StringBuilder document = new StringBuilder();
         for (int i = 0; i < 129; i++) {
             document.append("k").append(i).append(" : {\n");
         }
         document.append("}\n".repeat(129));
-        assertThatThrownBy(() -> Riffle.parse(document.toString()))
+        assertThatThrownBy(() -> Riffle.parse(document.toString(), RiffleOptions.maxDepth(128)))
                 .isInstanceOfSatisfying(RiffleParseException.class, e -> {
                     assertThat(e.category()).isEqualTo(RiffleError.RESOURCE_LIMIT_EXCEEDED);
                     assertThat(e.location().line()).isEqualTo(129);
@@ -141,12 +141,15 @@ class ParserRejectionTest {
     }
 
     @Test
-    void theLimitItselfIsAccepted() {
+    void theConfiguredCapItselfIsAccepted() {
         StringBuilder document = new StringBuilder();
         for (int i = 0; i < 128; i++) {
             document.append("k").append(i).append(" : {\n");
         }
         document.append("}\n".repeat(128));
+        assertThat(Riffle.parse(document.toString(), RiffleOptions.maxDepth(128))
+                        .entries())
+                .hasSize(1);
         assertThat(Riffle.parse(document.toString()).entries()).hasSize(1);
     }
 
