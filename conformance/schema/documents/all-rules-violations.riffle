@@ -1,0 +1,5 @@
+command : run
+url : https://example.org
+timeout : 1
+retries : 2
+stage : prod

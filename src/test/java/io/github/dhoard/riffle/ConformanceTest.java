@@ -1,5 +1,8 @@
 package io.github.dhoard.riffle;
 
+import static io.github.dhoard.riffle.Json.array;
+import static io.github.dhoard.riffle.Json.object;
+import static io.github.dhoard.riffle.Json.string;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -12,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 /** Runs every manifest case against the Java parser and canonical writer. */
@@ -77,6 +81,7 @@ class ConformanceTest {
     private static void checkSemantics(RiffleObject root, Map<String, Object> assertion) {
         String path = string(assertion.get("path"));
         String kind = string(assertion.get("kind"));
+        assertCanonicalPath(path);
         Optional<RiffleValue> found = find(root, path);
 
         if (kind.equals("missing")) {
@@ -99,6 +104,7 @@ class ConformanceTest {
     private static void checkAccessor(RiffleObject root, Map<String, Object> assertion) {
         String path = string(assertion.get("path"));
         String as = string(assertion.get("as"));
+        assertCanonicalPath(path);
         String description = path + " as " + as;
         if (assertion.containsKey("error")) {
             String expected = string(assertion.get("error"));
@@ -115,10 +121,18 @@ class ConformanceTest {
         }
     }
 
+    /** Checks that a manifest path is written in the canonical form of language-spec §10.1. */
+    private static void assertCanonicalPath(String path) {
+        assertThat(parsePath(path).toString())
+                .as("manifest path %s uses the path syntax of language-spec \u00a710.1", path)
+                .isEqualTo(path);
+    }
+
     /** Returns the interpreted value in the manifest's text form; collections return their kind. */
     private static String read(RiffleObject root, String path, String as) {
-        RiffleValue value = find(root, path)
-                .orElseThrow(() -> new RiffleAccessException(RiffleAccessError.MISSING, "missing", path, null));
+        RiffleValue value = find(root, parsePath(path))
+                .orElseThrow(
+                        () -> new RiffleAccessException(RiffleAccessError.MISSING, "missing", parsePath(path), null));
         return switch (as) {
             case "string" -> value.asString();
             case "integer32" -> Integer.toString(value.asInt());
@@ -134,50 +148,129 @@ class ConformanceTest {
         };
     }
 
-    /** Resolves dot-separated keys and {@code [index]} segments against a parsed value tree. */
+    /** Resolves a path of language-spec §10.1 against a parsed value tree. */
     private static Optional<RiffleValue> find(RiffleObject root, String path) {
-        RiffleValue current = root;
-        int at = 0;
-        while (at < path.length()) {
-            if (current instanceof RiffleObject object) {
-                int bracket = path.indexOf('[', at);
-                int dot = path.indexOf('.', at);
-                int end = firstIndex(bracket, dot, path.length());
-                RiffleValue next = object.entries().get(path.substring(at, end));
-                if (next == null) {
-                    return Optional.empty();
-                }
-                current = next;
-                at = end;
-            } else if (current instanceof RiffleArray array) {
-                if (path.charAt(at) != '[') {
-                    return Optional.empty();
-                }
-                int close = path.indexOf(']', at);
-                if (close < 0) {
-                    return Optional.empty();
-                }
-                int index = Integer.parseInt(path.substring(at + 1, close));
-                if (index < 0 || index >= array.size()) {
-                    return Optional.empty();
-                }
-                current = array.get(index);
-                at = close + 1;
-            } else {
+        return find(root, parsePath(path));
+    }
+
+    private static Optional<RiffleValue> find(RiffleValue start, RifflePath path) {
+        RiffleValue current = start;
+        for (RifflePath.Segment segment : path.segments()) {
+            RiffleValue next = null;
+            if (segment instanceof RifflePath.Key key && current instanceof RiffleObject object) {
+                next = object.entries().get(key.key());
+            } else if (segment instanceof RifflePath.Index index
+                    && current instanceof RiffleArray array
+                    && index.index() < array.size()) {
+                next = array.get(index.index());
+            }
+            if (next == null) {
                 return Optional.empty();
             }
-            if (at < path.length() && path.charAt(at) == '.') {
-                at++;
-            }
+            current = next;
         }
         return Optional.of(current);
     }
 
-    private static int firstIndex(int first, int second, int fallback) {
-        if (first < 0) {
-            return second < 0 ? fallback : second;
+    /**
+     * Parses the normative path syntax of language-spec §10.1: bare or quoted key segments
+     * separated by dots, and {@code [n]} indexes.
+     */
+    static RifflePath parsePath(String path) {
+        RifflePath result = RifflePath.root();
+        int at = 0;
+        while (at < path.length()) {
+            char first = path.charAt(at);
+            if (first == '[') {
+                int close = path.indexOf(']', at);
+                if (close < 0) {
+                    throw new AssertionError("unterminated index in path: " + path);
+                }
+                result = result.index(Integer.parseInt(path.substring(at + 1, close)));
+                at = close + 1;
+                if (at < path.length() && path.charAt(at) == '.') {
+                    at++;
+                }
+                continue;
+            }
+            String key;
+            if (first == '"') {
+                int end = at;
+                while (true) {
+                    end = path.indexOf('"', end + 1);
+                    if (end < 0) {
+                        throw new AssertionError("unterminated quoted key in path: " + path);
+                    }
+                    int backslashes = 0;
+                    for (int i = end - 1; i > at && path.charAt(i) == '\\'; i--) {
+                        backslashes++;
+                    }
+                    if (backslashes % 2 == 0) {
+                        break;
+                    }
+                }
+                key = unescape(path.substring(at + 1, end), path);
+                at = end + 1;
+            } else {
+                int end = at;
+                while (end < path.length() && path.charAt(end) != '.' && path.charAt(end) != '[') {
+                    end++;
+                }
+                key = path.substring(at, end);
+                at = end;
+            }
+            result = result.key(key);
+            if (at < path.length() && path.charAt(at) == '.') {
+                at++;
+            }
         }
-        return second < 0 ? first : Math.min(first, second);
+        return result;
+    }
+
+    @Test
+    void canonicalPathsWithEscapedKeysParseBackToTheSameKey() {
+        for (String key : List.of("a\\", "a\\\\", "say \"hi\"", "display name", "a.b", "")) {
+            RifflePath path = RifflePath.root().key(key);
+            assertThat(parsePath(path.toString())).as("canonical path %s", path).isEqualTo(path);
+        }
+    }
+
+    /** Applies the quoted-key escapes of language-spec §5.2 to the text between the quotes. */
+    private static String unescape(String body, String path) {
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        while (i < body.length()) {
+            char c = body.charAt(i);
+            if (c != '\\') {
+                out.append(c);
+                i++;
+                continue;
+            }
+            if (i + 1 >= body.length()) {
+                throw new AssertionError("dangling escape in path: " + path);
+            }
+            char escape = body.charAt(i + 1);
+            switch (escape) {
+                case '"' -> out.append('"');
+                case '\\' -> out.append('\\');
+                case 'n' -> out.append('\n');
+                case 'r' -> out.append('\r');
+                case 't' -> out.append('\t');
+                case 'b' -> out.append('\b');
+                case 'f' -> out.append('\f');
+                case 'u' -> {
+                    if (i + 5 >= body.length()) {
+                        throw new AssertionError("truncated \\u escape in path: " + path);
+                    }
+                    out.append((char) Integer.parseInt(body.substring(i + 2, i + 6), 16));
+                    i += 6;
+                    continue;
+                }
+                default -> throw new AssertionError("unsupported escape in path: " + path);
+            }
+            i += 2;
+        }
+        return out.toString();
     }
 
     private static Path inputPath(Map<String, Object> testCase) {
@@ -194,25 +287,5 @@ class ConformanceTest {
 
     private static String read(String file) throws Exception {
         return Files.readString(ROOT.resolve(file), StandardCharsets.UTF_8);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> object(Object value) {
-        assertThat(value).isInstanceOf(Map.class);
-        return (Map<String, Object>) value;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<Object> array(Object value) {
-        if (value == null) {
-            return List.of();
-        }
-        assertThat(value).isInstanceOf(List.class);
-        return (List<Object>) value;
-    }
-
-    private static String string(Object value) {
-        assertThat(value).isInstanceOf(String.class);
-        return (String) value;
     }
 }

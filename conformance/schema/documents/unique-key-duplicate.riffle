@@ -1,0 +1,15 @@
+values : [
+    1
+]
+servers : [
+    {
+        id : a
+    }
+    {
+        id : b
+    }
+    {
+        id : a
+        weight : 3
+    }
+]

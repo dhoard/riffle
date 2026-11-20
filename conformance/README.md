@@ -34,9 +34,10 @@ A semantic assertion has `path`, `kind`, and (for `string` only) a string-valued
 
 - `kind` is one of `string`, `map`, `array`, or `missing`.
 - `missing` asserts that no key or element exists at the path.
-- Paths use dot-separated map keys and `[n]` array indexes, for example
-  `server.endpoints[0].port`. Map keys containing `.` or `[` are not addressed by this path
-  syntax; their meaning is still covered by the byte-exact canonical expectation.
+- Paths use the normative path syntax of spec §10.1: dot-separated bare key segments, quoted key
+  segments for keys outside `[A-Za-z0-9_][A-Za-z0-9_-]*`, and `[n]` array indexes, for example
+  `server.endpoints[0].port` and `"display name"`. A key that holds a `.` or a `[` is quoted, so
+  every key of a conforming document is addressable.
 
 An accessor assertion reads the value at `path` as the interpretation named by `as`, and has
 either an expected `value` or an expected `error`:

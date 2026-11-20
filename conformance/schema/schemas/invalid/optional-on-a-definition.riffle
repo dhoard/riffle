@@ -1,0 +1,16 @@
+riffleSchema : 1
+definitions : {
+    name : {
+        type : string
+        optional : true
+    }
+}
+root : {
+    type : map
+    keys : {
+        a : {
+            type : ref
+            definition : name
+        }
+    }
+}

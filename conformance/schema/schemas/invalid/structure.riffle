@@ -1,0 +1,22 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        a : {
+            type : integer
+            values : [
+                1
+                2
+            ]
+            minValue : 1
+        }
+        b : {
+            type : map
+            minKeys : -2
+        }
+        c : {
+            type : array
+        }
+    }
+    tyep : map
+}

@@ -20,7 +20,50 @@ final class Conversions {
     private static final String EXPECTED_DECIMAL = "expected a decimal number such as 0.25, -3 or 1e3";
     private static final String EXPECTED_BOOLEAN = "expected true or false";
 
+    /** The text form of the integer expectation, reused by schema problems. */
+    static String expectedInteger() {
+        return EXPECTED_INTEGER;
+    }
+
+    /** The text form of the decimal expectation, reused by schema problems. */
+    static String expectedDecimal() {
+        return EXPECTED_DECIMAL;
+    }
+
+    /** The text form of the boolean expectation, reused by schema problems. */
+    static String expectedBoolean() {
+        return EXPECTED_BOOLEAN;
+    }
+
     private Conversions() {}
+
+    /** Returns whether {@code text} matches the integer grammar of spec §13.1. */
+    static boolean isIntegerText(String text) {
+        return INTEGER.matcher(text).matches();
+    }
+
+    /** Returns the value of text matching the integer grammar, or {@code null} beyond 64 bits. */
+    static Long parseIntegerText(String text) {
+        return parseLong(text);
+    }
+
+    /** Returns whether {@code text} matches the decimal grammar of spec §13.1. */
+    static boolean isDecimalText(String text) {
+        return DECIMAL.matcher(text).matches();
+    }
+
+    /**
+     * Returns the normalized value of text matching the decimal grammar, or {@code null} when the
+     * exponent is out of the range of spec §13.2.
+     */
+    static BigDecimal parseDecimalText(String text) {
+        return parseDecimal(text);
+    }
+
+    /** Returns the lowercase boolean text, which is the only text the boolean interpretation reads. */
+    static boolean isBooleanText(String text) {
+        return text.equals("true") || text.equals("false");
+    }
 
     static long toLong(RiffleValue value) {
         String text = text(value, "integer");

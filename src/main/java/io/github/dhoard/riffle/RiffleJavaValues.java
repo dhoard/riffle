@@ -1,8 +1,10 @@
 package io.github.dhoard.riffle;
 
 import java.math.BigDecimal;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,7 +16,8 @@ import java.util.Set;
  * Opt-in conversion between Riffle values and ordinary Java values.
  *
  * <p>These methods are a separate, explicit boundary. Conversion to Java types discards source
- * locations and key paths, so a round trip cannot recover that metadata.</p>
+ * locations and key paths, so a round trip cannot recover that metadata. Conversion is iterative,
+ * so tree depth is bounded only by memory unless a caller passes {@link RiffleOptions#maxDepth(int)}.</p>
  *
  * <p>Resulting maps and lists are defensive, deeply converted, and unmodifiable, and iteration
  * order is preserved. Riffle has no null: an absent key is the only way to express "no value".</p>
@@ -28,19 +31,89 @@ public final class RiffleJavaValues {
      * Converts a Riffle value to its native Java representation.
      *
      * @param value the value
-     * @return a {@link String}, an unmodifiable {@link Map}, or an unmodifiable {@link List};
-     *     never {@code null}
-     * @throws NullPointerException if {@code value} is null
+     * @return a {@link String}, an unmodifiable {@link Map}, or an unmodifiable {@link List}
      */
     public static Object toJava(RiffleValue value) {
+        return toJava(value, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Converts a Riffle value to Java with caller-supplied resource options.
+     *
+     * @param value the value
+     * @param options the resource options
+     * @return a {@link String}, an unmodifiable {@link Map}, or an unmodifiable {@link List}
+     * @throws IllegalArgumentException if the value is null or deeper than a configured cap
+     */
+    public static Object toJava(RiffleValue value, RiffleOptions options) {
         Objects.requireNonNull(value, "value");
-        if (value instanceof RiffleObject object) {
-            return toJava(object);
+        Objects.requireNonNull(options, "options");
+        TreeDepth.check(value, options, "value tree is deeper than the configured limit");
+        Deque<ToJavaFrame> stack = new ArrayDeque<>();
+        stack.push(ToJavaFrame.of(value));
+        Object result = null;
+        while (!stack.isEmpty()) {
+            ToJavaFrame frame = stack.peek();
+            if (frame.ready) {
+                stack.pop();
+                result = frame.result;
+                if (frame.parent == null) {
+                    return result;
+                }
+                if (frame.key != null) {
+                    frame.parent.map.put(frame.key, result);
+                } else {
+                    frame.parent.list.add(result);
+                }
+                continue;
+            }
+            if (!frame.expanded) {
+                frame.expanded = true;
+                if (frame.value instanceof RiffleString string) {
+                    frame.result = string.text();
+                    frame.ready = true;
+                } else if (frame.value instanceof RiffleObject map) {
+                    frame.children = new ArrayList<Object>(map.entries().entrySet());
+                    frame.map = new LinkedHashMap<>();
+                    if (map.entries().isEmpty()) {
+                        frame.result = Collections.unmodifiableMap(frame.map);
+                        frame.ready = true;
+                    } else {
+                        pushToJava(stack, frame);
+                    }
+                } else {
+                    RiffleArray array = (RiffleArray) frame.value;
+                    frame.children = new ArrayList<>(array.size());
+                    for (int i = 0; i < array.size(); i++) {
+                        frame.children.add(array.get(i));
+                    }
+                    frame.list = new ArrayList<>(array.size());
+                    if (array.size() == 0) {
+                        frame.result = Collections.unmodifiableList(frame.list);
+                        frame.ready = true;
+                    } else {
+                        pushToJava(stack, frame);
+                    }
+                }
+            } else {
+                frame.result = frame.map == null
+                        ? Collections.unmodifiableList(frame.list)
+                        : Collections.unmodifiableMap(frame.map);
+                frame.ready = true;
+            }
         }
-        if (value instanceof RiffleArray array) {
-            return toJavaArray(array);
+        return result;
+    }
+
+    private static void pushToJava(Deque<ToJavaFrame> stack, ToJavaFrame parent) {
+        for (int i = parent.children.size() - 1; i >= 0; i--) {
+            Object child = parent.children.get(i);
+            if (child instanceof Map.Entry<?, ?> entry) {
+                stack.push(ToJavaFrame.child(parent, (RiffleValue) entry.getValue(), (String) entry.getKey(), -1));
+            } else {
+                stack.push(ToJavaFrame.child(parent, (RiffleValue) child, null, i));
+            }
         }
-        return value.asString();
     }
 
     /**
@@ -48,60 +121,146 @@ public final class RiffleJavaValues {
      *
      * @param object the map
      * @return a defensive copy
-     * @throws NullPointerException if {@code object} is null
      */
     public static Map<String, Object> toJava(RiffleObject object) {
-        Objects.requireNonNull(object, "object");
-        Map<String, Object> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, RiffleValue> entry : object.entries().entrySet()) {
-            copy.put(entry.getKey(), toJava(entry.getValue()));
-        }
-        return Collections.unmodifiableMap(copy);
+        return toJava(object, RiffleOptions.UNBOUNDED);
     }
 
     /**
-     * Converts a Java value to a Riffle value. Only {@link String}, {@link Integer},
-     * {@link Long}, {@link BigDecimal}, {@link Boolean}, {@link Map}, and {@link List} are
-     * supported; map keys must be non-null strings. A number or boolean becomes its canonical
-     * text, which the matching {@link RiffleValue} accessor accepts.
+     * Converts a Riffle map to Java with caller-supplied resource options.
      *
-     * <p>Conversion is fully recursive and defensive. Identity cycles in maps and lists are
-     * rejected; shared acyclic children are converted independently.</p>
+     * @param object the map
+     * @param options the resource options
+     * @return a defensive copy
+     */
+    public static Map<String, Object> toJava(RiffleObject object, RiffleOptions options) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) toJava((RiffleValue) object, options);
+        return result;
+    }
+
+    /**
+     * Converts a Java value to a Riffle value.
      *
      * @param value the Java value
      * @return the corresponding Riffle value, with no source metadata
-     * @throws IllegalArgumentException if the value is null or its type is unsupported, a map key
-     *     is not a string, a string contains an unpaired surrogate or U+0000, a decimal or nesting
-     *     limit is exceeded, or a collection graph contains a cycle
      */
     public static RiffleValue fromJava(Object value) {
-        return convert(value, 0, newActiveSet());
+        return fromJava(value, RiffleOptions.UNBOUNDED);
     }
 
     /**
-     * Converts a Java map to a Riffle map. This overload is convenient for parsed documents,
-     * whose root is always a map.
+     * Converts a Java value to a Riffle value with caller-supplied resource options.
      *
-     * @param object the map
-     * @return the corresponding Riffle map, with no source metadata
-     * @throws IllegalArgumentException under the same conditions as {@link #fromJava(Object)}
+     * @param value the Java value
+     * @param options the resource options
+     * @return the corresponding Riffle value, with no source metadata
+     * @throws IllegalArgumentException if the value is unsupported, cyclic, or exceeds a configured cap
      */
-    public static RiffleObject fromJava(Map<String, ?> object) {
+    public static RiffleValue fromJava(Object value, RiffleOptions options) {
+        Objects.requireNonNull(options, "options");
+        Deque<FromJavaFrame> stack = new ArrayDeque<>();
+        Set<Object> active = Collections.newSetFromMap(new IdentityHashMap<>());
+        stack.push(FromJavaFrame.of(value, active));
+        RiffleValue result = null;
+        while (!stack.isEmpty()) {
+            FromJavaFrame frame = stack.peek();
+            if (frame.ready) {
+                stack.pop();
+                result = frame.result;
+                active.remove(frame.source);
+                if (frame.parent == null) {
+                    return result;
+                }
+                if (frame.key != null) {
+                    frame.parent.map.put(frame.key, result);
+                } else {
+                    frame.parent.list.add(result);
+                }
+                continue;
+            }
+            if (!frame.expanded) {
+                frame.expanded = true;
+                RiffleValue scalar = scalar(frame.source);
+                if (scalar != null) {
+                    frame.result = scalar;
+                    frame.ready = true;
+                    continue;
+                }
+                if (frame.source instanceof Map<?, ?> map) {
+                    checkDepth(frame.depth, options);
+                    enter(map, active);
+                    frame.map = new LinkedHashMap<>();
+                    frame.children = new ArrayList<Object>(map.entrySet());
+                    if (map.isEmpty()) {
+                        frame.result = RiffleObject.of(frame.map);
+                        frame.ready = true;
+                    } else {
+                        pushFromJava(stack, frame);
+                    }
+                } else if (frame.source instanceof List<?> list) {
+                    checkDepth(frame.depth, options);
+                    enter(list, active);
+                    frame.list = new ArrayList<>(list.size());
+                    frame.children = new ArrayList<Object>(list);
+                    if (list.isEmpty()) {
+                        frame.result = RiffleArray.of(frame.list);
+                        frame.ready = true;
+                    } else {
+                        pushFromJava(stack, frame);
+                    }
+                } else {
+                    throw new IllegalArgumentException("unsupported Java type "
+                            + frame.source.getClass().getName() + "; Riffle accepts strings, integers, longs, decimals,"
+                            + " booleans, maps and lists");
+                }
+            } else {
+                frame.result = frame.map == null ? RiffleArray.of(frame.list) : RiffleObject.of(frame.map);
+                frame.ready = true;
+            }
+        }
+        return result;
+    }
+
+    private static void pushFromJava(Deque<FromJavaFrame> stack, FromJavaFrame parent) {
+        for (int i = parent.children.size() - 1; i >= 0; i--) {
+            Object child = parent.children.get(i);
+            if (child instanceof Map.Entry<?, ?> entry) {
+                if (!(entry.getKey() instanceof String key)) {
+                    throw new IllegalArgumentException("map keys must be non-null strings");
+                }
+                stack.push(FromJavaFrame.child(parent, entry.getValue(), key, -1));
+            } else {
+                stack.push(FromJavaFrame.child(parent, child, null, i));
+            }
+        }
+    }
+
+    /**
+     * Converts a Java map to a Riffle map with caller-supplied resource options.
+     *
+     * @param object the Java map
+     * @param options the resource options
+     * @return the corresponding Riffle map, with no source metadata
+     */
+    public static RiffleObject fromJava(Map<String, ?> object, RiffleOptions options) {
         if (object == null) {
             throw new IllegalArgumentException(NULL_VALUE);
         }
-        return convertMap(object, 0, newActiveSet());
+        return (RiffleObject) fromJava((Object) object, options);
     }
 
-    private static List<Object> toJavaArray(RiffleArray array) {
-        List<Object> copy = new ArrayList<>(array.size());
-        for (RiffleValue element : array.values()) {
-            copy.add(toJava(element));
-        }
-        return Collections.unmodifiableList(copy);
+    /**
+     * Converts a Java map to a Riffle map.
+     *
+     * @param object the Java map
+     * @return the corresponding Riffle map, with no source metadata
+     */
+    public static RiffleObject fromJava(Map<String, ?> object) {
+        return fromJava(object, RiffleOptions.UNBOUNDED);
     }
 
-    private static RiffleValue convert(Object value, int level, Set<Object> active) {
+    private static RiffleValue scalar(Object value) {
         if (value == null) {
             throw new IllegalArgumentException(NULL_VALUE);
         }
@@ -114,21 +273,12 @@ public final class RiffleJavaValues {
         if (value instanceof BigDecimal decimal) {
             return RiffleString.of(decimalText(decimal));
         }
-        if (value instanceof Map<?, ?> map) {
-            return convertMap(map, level, active);
-        }
-        if (value instanceof List<?> list) {
-            return convertList(list, level, active);
-        }
-        throw new IllegalArgumentException("unsupported Java type "
-                + value.getClass().getName() + "; Riffle accepts strings, integers, longs, decimals, booleans, maps"
-                + " and lists");
+        return null;
     }
 
     /**
      * Renders a decimal as normalized text that the decimal accessor reads back exactly: plain
-     * notation up to {@link Limits#MAX_PLAIN_DECIMAL} characters and exponent notation beyond it,
-     * so that a value such as {@code 1E+2147483647} never materializes billions of digits.
+     * notation up to {@link Limits#MAX_PLAIN_DECIMAL} characters and exponent notation beyond it.
      */
     private static String decimalText(BigDecimal decimal) {
         BigDecimal value;
@@ -170,7 +320,6 @@ public final class RiffleJavaValues {
                 .toString();
     }
 
-    /** Returns the length of the plain notation without building it. */
     private static long plainLength(BigDecimal value, int digits, long exponent, long adjusted) {
         long length;
         if (exponent >= 0) {
@@ -183,44 +332,10 @@ public final class RiffleJavaValues {
         return value.signum() < 0 ? length + 1 : length;
     }
 
-    private static RiffleObject convertMap(Map<?, ?> map, int level, Set<Object> active) {
-        checkLevel(level);
-        enter(map, active);
-        try {
-            Map<String, RiffleValue> copy = new LinkedHashMap<>();
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
-                if (!(entry.getKey() instanceof String key)) {
-                    throw new IllegalArgumentException("map keys must be non-null strings");
-                }
-                if (Syntax.hasUnpairedSurrogate(key)) {
-                    throw new IllegalArgumentException("map key contains an unpaired surrogate");
-                }
-                copy.put(key, convert(entry.getValue(), level + 1, active));
-            }
-            return RiffleObject.of(copy);
-        } finally {
-            active.remove(map);
-        }
-    }
-
-    private static RiffleArray convertList(List<?> list, int level, Set<Object> active) {
-        checkLevel(level);
-        enter(list, active);
-        try {
-            List<RiffleValue> copy = new ArrayList<>(list.size());
-            for (Object element : list) {
-                copy.add(convert(element, level + 1, active));
-            }
-            return RiffleArray.of(copy);
-        } finally {
-            active.remove(list);
-        }
-    }
-
-    private static void checkLevel(int level) {
-        if (level > Limits.MAX_DEPTH) {
+    private static void checkDepth(int depth, RiffleOptions options) {
+        if (options.exceeds(depth)) {
             throw new IllegalArgumentException(
-                    "Java value nests deeper than the limit of " + Limits.MAX_DEPTH + " collections");
+                    "Java value is deeper than the configured limit: " + depth + " > " + options.depthLimit());
         }
     }
 
@@ -230,7 +345,61 @@ public final class RiffleJavaValues {
         }
     }
 
-    private static Set<Object> newActiveSet() {
-        return Collections.newSetFromMap(new IdentityHashMap<>());
+    private static final class ToJavaFrame {
+        private final RiffleValue value;
+        private final ToJavaFrame parent;
+        private final String key;
+        private final int index;
+        private List<Object> children;
+        private Map<String, Object> map;
+        private List<Object> list;
+        private boolean expanded;
+        private boolean ready;
+        private Object result;
+
+        private ToJavaFrame(RiffleValue value, ToJavaFrame parent, String key, int index) {
+            this.value = value;
+            this.parent = parent;
+            this.key = key;
+            this.index = index;
+        }
+
+        private static ToJavaFrame of(RiffleValue value) {
+            return new ToJavaFrame(value, null, null, -1);
+        }
+
+        private static ToJavaFrame child(ToJavaFrame parent, RiffleValue value, String key, int index) {
+            return new ToJavaFrame(value, parent, key, index);
+        }
+    }
+
+    private static final class FromJavaFrame {
+        private final Object source;
+        private final FromJavaFrame parent;
+        private final String key;
+        private final int index;
+        private final int depth;
+        private List<Object> children;
+        private Map<String, RiffleValue> map;
+        private List<RiffleValue> list;
+        private boolean expanded;
+        private boolean ready;
+        private RiffleValue result;
+
+        private FromJavaFrame(Object source, FromJavaFrame parent, String key, int index, int depth) {
+            this.source = source;
+            this.parent = parent;
+            this.key = key;
+            this.index = index;
+            this.depth = depth;
+        }
+
+        private static FromJavaFrame of(Object source, Set<Object> active) {
+            return new FromJavaFrame(source, null, null, -1, 0);
+        }
+
+        private static FromJavaFrame child(FromJavaFrame parent, Object source, String key, int index) {
+            return new FromJavaFrame(source, parent, key, index, parent.depth + 1);
+        }
     }
 }

@@ -1,0 +1,10 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        a : {
+            type : any
+            default : 1
+        }
+    }
+}

@@ -1,0 +1,37 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        shape : {
+            type : taggedUnion
+            discriminator : kind
+            cases : {
+                circle : {
+                    type : map
+                    keys : {
+                        kind : {
+                            type : string
+                        }
+                        radius : {
+                            type : decimal
+                            min : 0
+                        }
+                    }
+                }
+                square : {
+                    type : map
+                    keys : {
+                        kind : {
+                            type : string
+                        }
+                        side : {
+                            type : decimal
+                            min : 0
+                            optional : true
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

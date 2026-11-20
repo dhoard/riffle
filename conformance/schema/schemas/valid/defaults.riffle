@@ -1,0 +1,43 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        name : {
+            type : string
+        }
+        port : {
+            type : integer
+            optional : true
+            default : 8080
+        }
+        options : {
+            type : map
+            optional : true
+            default : {
+                verbose : true
+            }
+            keys : {
+                verbose : {
+                    type : boolean
+                    optional : true
+                    default : false
+                }
+                level : {
+                    type : integer
+                    optional : true
+                    default : 2
+                }
+            }
+        }
+        tags : {
+            type : array
+            optional : true
+            default : [
+                none
+            ]
+            items : {
+                type : string
+            }
+        }
+    }
+}

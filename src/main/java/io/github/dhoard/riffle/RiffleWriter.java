@@ -1,63 +1,79 @@
 package io.github.dhoard.riffle;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Writes the canonical form of a document: LF line endings, four-space indentation,
- * {@code key : value} entries, {@code {}} and {@code []} for empty collections, raw blocks for
- * multiline strings, and quotes only where a bare key or value would be read differently. Package-private by design.
- *
- * <p>Writing is bounded like parsing: a value tree that nests deeper than
- * {@link Limits#MAX_DEPTH} collections has no valid document, so it is rejected instead of
- * producing text the parser must refuse or recursing until the stack overflows.</p>
- */
+/** Writes the canonical document form of LANGUAGE_SPEC.md §11.2. */
 final class RiffleWriter {
+
     private static final String INDENT = "    ";
 
+    private final RiffleOptions options;
     private final StringBuilder out = new StringBuilder();
 
-    private RiffleWriter() {}
+    private RiffleWriter(RiffleOptions options) {
+        this.options = options;
+    }
 
+    /** Writes {@code root} with the default options. */
     static String write(RiffleObject root) {
-        RiffleWriter writer = new RiffleWriter();
-        writer.entries(root, 0);
+        return write(root, RiffleOptions.UNBOUNDED);
+    }
+
+    /** Writes {@code root}, applying a caller-supplied nesting cap if one is configured. */
+    static String write(RiffleObject root, RiffleOptions options) {
+        RiffleWriter writer = new RiffleWriter(options);
+        writer.emit(root);
         return writer.out.toString();
     }
 
-    private void entries(RiffleObject object, int level) {
-        for (Map.Entry<String, RiffleValue> entry : object.entries().entrySet()) {
-            indent(level);
-            out.append(key(entry.getKey())).append(" : ");
-            value(entry.getValue(), level);
+    private void emit(RiffleObject root) {
+        Deque<Frame> stack = new ArrayDeque<>();
+        stack.push(Frame.root(root));
+        while (!stack.isEmpty()) {
+            Frame frame = stack.peek();
+            if (frame.index == (frame.map ? frame.entries.size() : frame.values.size())) {
+                stack.pop();
+                if (!frame.root) {
+                    out.append(indent(frame.level - 1)).append(frame.close).append('\n');
+                }
+                continue;
+            }
+            if (frame.map) {
+                Map.Entry<String, RiffleValue> entry = frame.entries.get(frame.index++);
+                out.append(indent(frame.level)).append(key(entry.getKey())).append(" : ");
+                emitValue(entry.getValue(), frame.level, stack);
+            } else {
+                RiffleValue element = frame.values.get(frame.index++);
+                out.append(indent(frame.level));
+                emitValue(element, frame.level, stack);
+            }
         }
     }
 
-    private void value(RiffleValue value, int level) {
-        if (value instanceof RiffleObject object) {
-            if (object.entries().isEmpty()) {
+    private void emitValue(RiffleValue value, int level, Deque<Frame> stack) {
+        if (value instanceof RiffleString string) {
+            out.append(text(string.text(), level));
+        } else if (value instanceof RiffleObject map) {
+            if (map.entries().isEmpty()) {
                 out.append("{}\n");
                 return;
             }
             checkDepth(level + 1);
             out.append("{\n");
-            entries(object, level + 1);
-            indent(level);
-            out.append("}\n");
-        } else if (value instanceof RiffleArray array) {
+            stack.push(Frame.map(map, level + 1));
+        } else {
+            RiffleArray array = (RiffleArray) value;
             if (array.values().isEmpty()) {
                 out.append("[]\n");
                 return;
             }
             checkDepth(level + 1);
             out.append("[\n");
-            for (RiffleValue element : array.values()) {
-                indent(level + 1);
-                value(element, level + 1);
-            }
-            indent(level);
-            out.append("]\n");
-        } else if (value instanceof RiffleString string) {
-            text(string.text(), level);
+            stack.push(Frame.array(array, level + 1));
         }
     }
 
@@ -66,41 +82,78 @@ final class RiffleWriter {
     }
 
     /** Writes a string bare when possible, then as a raw block, and otherwise quoted. */
-    private void text(String text, int level) {
+    private static String text(String text, int level) {
         if (Syntax.isBareValue(text)) {
-            out.append(text).append('\n');
-        } else if (Syntax.isRawBlockText(text)) {
-            rawBlock(text, level + 1);
-        } else {
-            out.append(Syntax.quoteValue(text)).append('\n');
+            return text + "\n";
         }
+        if (Syntax.isRawBlockText(text)) {
+            return rawBlock(text, level + 1);
+        }
+        return Syntax.quoteValue(text) + "\n";
     }
 
     /**
      * Writes a raw block whose content and closer sit at {@code level}. Empty lines carry no
      * indentation; every other line, even one of only whitespace, carries all of it.
      */
-    private void rawBlock(String text, int level) {
-        out.append(Syntax.RAW_BLOCK_DELIMITER).append('\n');
+    private static String rawBlock(String text, int level) {
+        StringBuilder block = new StringBuilder(Syntax.RAW_BLOCK_DELIMITER).append('\n');
         for (String line : text.split("\n", -1)) {
             if (!line.isEmpty()) {
-                indent(level);
-                out.append(line);
+                block.append(indent(level)).append(line);
             }
-            out.append('\n');
+            block.append('\n');
         }
-        indent(level);
-        out.append(Syntax.RAW_BLOCK_DELIMITER).append('\n');
+        block.append(indent(level)).append(Syntax.RAW_BLOCK_DELIMITER).append('\n');
+        return block.toString();
     }
 
-    private static void checkDepth(int depth) {
-        if (depth > Limits.MAX_DEPTH) {
-            throw new IllegalArgumentException("value nesting exceeds the limit of " + Limits.MAX_DEPTH
-                    + " collections, so no valid document can express it");
+    private void checkDepth(int depth) {
+        if (options.exceeds(depth)) {
+            throw new IllegalArgumentException(
+                    "value tree is deeper than the configured limit: " + depth + " > " + options.depthLimit());
         }
     }
 
-    private void indent(int level) {
-        out.append(INDENT.repeat(level));
+    private static String indent(int level) {
+        return INDENT.repeat(level);
+    }
+
+    /** One open collection in the output, used instead of recursion over tree depth. */
+    private static final class Frame {
+        private final boolean map;
+        private final boolean root;
+        private final int level;
+        private final List<Map.Entry<String, RiffleValue>> entries;
+        private final List<RiffleValue> values;
+        private final char close;
+        private int index;
+
+        private Frame(
+                boolean map,
+                boolean root,
+                int level,
+                List<Map.Entry<String, RiffleValue>> entries,
+                List<RiffleValue> values) {
+            this.map = map;
+            this.root = root;
+            this.level = level;
+            this.entries = entries;
+            this.values = values;
+            this.close = map ? '}' : ']';
+        }
+
+        private static Frame root(RiffleObject object) {
+            return new Frame(true, true, 0, new ArrayList<>(object.entries().entrySet()), List.of());
+        }
+
+        private static Frame map(RiffleObject object, int level) {
+            return new Frame(
+                    true, false, level, new ArrayList<>(object.entries().entrySet()), List.of());
+        }
+
+        private static Frame array(RiffleArray array, int level) {
+            return new Frame(false, false, level, List.of(), new ArrayList<>(array.values()));
+        }
     }
 }

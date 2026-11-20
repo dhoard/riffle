@@ -1,0 +1,4 @@
+shape : {
+    kind : circle
+    radius : 2.5
+}

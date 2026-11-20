@@ -1,0 +1,36 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        mode : {
+            type : kindUnion
+            string : {
+                type : integer
+            }
+            map : {
+                type : map
+                otherKeys : {
+                    type : any
+                }
+            }
+            array : {
+                type : array
+                items : {
+                    type : string
+                }
+            }
+        }
+        label : {
+            type : kindUnion
+            string : {
+                type : string
+            }
+            array : {
+                type : array
+                items : {
+                    type : any
+                }
+            }
+        }
+    }
+}

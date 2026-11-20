@@ -36,7 +36,7 @@
           "value": "path//segment"
         },
         {
-          "path": "display name",
+          "path": "\"display name\"",
           "kind": "string",
           "value": "Jane Doe"
         },
@@ -950,12 +950,6 @@
       "input": "invalid/invalid-utf8.bin",
       "errorCategory": "INVALID_UTF8",
       "encoding": "invalid UTF-8"
-    },
-    {
-      "id": "invalid.too-deep",
-      "expectation": "invalid",
-      "input": "invalid/too-deep.riffle",
-      "errorCategory": "RESOURCE_LIMIT_EXCEEDED"
     },
     {
       "id": "invalid.lone-cr",

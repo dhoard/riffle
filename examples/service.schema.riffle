@@ -1,0 +1,43 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        name : {
+            type : string
+            notBlank : true
+        }
+        port : {
+            type : integer
+            min : 1
+            max : 65535
+            optional : true
+            default : 8080
+        }
+        command : {
+            type : string
+            optional : true
+        }
+        url : {
+            type : string
+            pattern : https?://.+
+            optional : true
+        }
+        env : {
+            type : map
+            optional : true
+            keyPattern : "[A-Z_][A-Z0-9_]*"
+            otherKeys : {
+                type : string
+            }
+        }
+    }
+    rules : [
+        {
+            rule : atMostOne
+            keys : [
+                command
+                url
+            ]
+        }
+    ]
+}

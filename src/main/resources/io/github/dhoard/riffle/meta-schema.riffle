@@ -1,0 +1,616 @@
+riffleSchema : 1
+description : The meta-schema for Riffle schema version 1; it validates every schema document.
+definitions : {
+    version : {
+        type : string
+    }
+    typeName : {
+        type : string
+        values : [
+            any
+            array
+            boolean
+            decimal
+            integer
+            kindUnion
+            map
+            ref
+            string
+            taggedUnion
+        ]
+    }
+    ruleName : {
+        type : string
+    }
+    text : {
+        type : string
+        notBlank : true
+    }
+    count : {
+        type : integer
+        min : 0
+    }
+    integerText : {
+        type : integer
+    }
+    decimalText : {
+        type : decimal
+    }
+    flag : {
+        type : string
+        values : [
+            true
+        ]
+    }
+    documentation : {
+        type : string
+    }
+    anyValue : {
+        type : any
+    }
+    keyList : {
+        type : array
+        minItems : 1
+        items : {
+            type : ref
+            definition : text
+        }
+    }
+    node : {
+        type : taggedUnion
+        discriminator : type
+        cases : {
+            any : {
+                type : ref
+                definition : anyNode
+            }
+            array : {
+                type : ref
+                definition : arrayNode
+            }
+            boolean : {
+                type : ref
+                definition : booleanNode
+            }
+            decimal : {
+                type : ref
+                definition : decimalNode
+            }
+            integer : {
+                type : ref
+                definition : integerNode
+            }
+            kindUnion : {
+                type : ref
+                definition : kindUnionNode
+            }
+            map : {
+                type : ref
+                definition : mapNode
+            }
+            ref : {
+                type : ref
+                definition : referenceNode
+            }
+            string : {
+                type : ref
+                definition : stringNode
+            }
+            taggedUnion : {
+                type : ref
+                definition : taggedUnionNode
+            }
+        }
+    }
+    anyNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    stringNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            minLength : {
+                type : ref
+                definition : count
+                optional : true
+            }
+            maxLength : {
+                type : ref
+                definition : count
+                optional : true
+            }
+            notBlank : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            pattern : {
+                type : ref
+                definition : text
+                optional : true
+            }
+            values : {
+                type : array
+                minItems : 1
+                items : {
+                    type : string
+                }
+                optional : true
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    integerNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            min : {
+                type : ref
+                definition : integerText
+                optional : true
+            }
+            max : {
+                type : ref
+                definition : integerText
+                optional : true
+            }
+            values : {
+                type : array
+                minItems : 1
+                items : {
+                    type : integer
+                }
+                optional : true
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    decimalNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            min : {
+                type : ref
+                definition : decimalText
+                optional : true
+            }
+            max : {
+                type : ref
+                definition : decimalText
+                optional : true
+            }
+            minExclusive : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            maxExclusive : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            values : {
+                type : array
+                minItems : 1
+                items : {
+                    type : decimal
+                }
+                optional : true
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    booleanNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    mapNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            keys : {
+                type : map
+                otherKeys : {
+                    type : ref
+                    definition : node
+                }
+                optional : true
+            }
+            otherKeys : {
+                type : ref
+                definition : node
+                optional : true
+            }
+            keyPattern : {
+                type : ref
+                definition : text
+                optional : true
+            }
+            minKeys : {
+                type : ref
+                definition : count
+                optional : true
+            }
+            maxKeys : {
+                type : ref
+                definition : count
+                optional : true
+            }
+            rules : {
+                type : array
+                minItems : 1
+                items : {
+                    type : ref
+                    definition : ruleNode
+                }
+                optional : true
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    arrayNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            items : {
+                type : ref
+                definition : node
+            }
+            minItems : {
+                type : ref
+                definition : count
+                optional : true
+            }
+            maxItems : {
+                type : ref
+                definition : count
+                optional : true
+            }
+            unique : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            uniqueKey : {
+                type : ref
+                definition : text
+                optional : true
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    referenceNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            definition : {
+                type : ref
+                definition : text
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    taggedUnionNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            discriminator : {
+                type : ref
+                definition : text
+            }
+            cases : {
+                type : map
+                minKeys : 1
+                otherKeys : {
+                    type : ref
+                    definition : node
+                }
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    kindUnionNode : {
+        type : map
+        keys : {
+            type : {
+                type : ref
+                definition : typeName
+            }
+            string : {
+                type : ref
+                definition : node
+                optional : true
+            }
+            map : {
+                type : ref
+                definition : node
+                optional : true
+            }
+            array : {
+                type : ref
+                definition : node
+                optional : true
+            }
+            description : {
+                type : ref
+                definition : documentation
+                optional : true
+            }
+            optional : {
+                type : ref
+                definition : flag
+                optional : true
+            }
+            default : {
+                type : ref
+                definition : anyValue
+                optional : true
+            }
+        }
+    }
+    ruleNode : {
+        type : taggedUnion
+        discriminator : rule
+        cases : {
+            exactlyOne : {
+                type : map
+                keys : {
+                    rule : {
+                        type : ref
+                        definition : ruleName
+                    }
+                    keys : {
+                        type : ref
+                        definition : keyList
+                    }
+                }
+            }
+            atMostOne : {
+                type : map
+                keys : {
+                    rule : {
+                        type : ref
+                        definition : ruleName
+                    }
+                    keys : {
+                        type : ref
+                        definition : keyList
+                    }
+                }
+            }
+            allOrNone : {
+                type : map
+                keys : {
+                    rule : {
+                        type : ref
+                        definition : ruleName
+                    }
+                    keys : {
+                        type : ref
+                        definition : keyList
+                    }
+                }
+            }
+            requires : {
+                type : map
+                keys : {
+                    rule : {
+                        type : ref
+                        definition : ruleName
+                    }
+                    key : {
+                        type : ref
+                        definition : text
+                    }
+                    keys : {
+                        type : ref
+                        definition : keyList
+                    }
+                }
+            }
+            memberOf : {
+                type : map
+                keys : {
+                    rule : {
+                        type : ref
+                        definition : ruleName
+                    }
+                    key : {
+                        type : ref
+                        definition : text
+                    }
+                    array : {
+                        type : ref
+                        definition : text
+                    }
+                }
+            }
+        }
+    }
+}
+root : {
+    type : map
+    keys : {
+        riffleSchema : {
+            type : ref
+            definition : version
+        }
+        description : {
+            type : ref
+            definition : documentation
+            optional : true
+        }
+        root : {
+            type : ref
+            definition : node
+        }
+        definitions : {
+            type : map
+            otherKeys : {
+                type : ref
+                definition : node
+            }
+            optional : true
+        }
+    }
+}

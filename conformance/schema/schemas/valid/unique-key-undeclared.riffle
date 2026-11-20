@@ -1,0 +1,16 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        values : {
+            type : array
+            uniqueKey : id
+            items : {
+                type : map
+                otherKeys : {
+                    type : any
+                }
+            }
+        }
+    }
+}

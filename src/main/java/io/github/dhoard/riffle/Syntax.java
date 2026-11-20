@@ -49,6 +49,19 @@ final class Syntax {
 
     /** Returns whether {@code key} can be written without quotes. */
     static boolean isBareKey(String key) {
+        return isBare(key, true);
+    }
+
+    /**
+     * Returns whether {@code key} can be written without quotes inside a path (LANGUAGE_SPEC.md
+     * §10.1). A dot is the path separator there, so a key holding a dot is always quoted even
+     * though a map key may hold one.
+     */
+    static boolean isBarePathKey(String key) {
+        return isBare(key, false);
+    }
+
+    private static boolean isBare(String key, boolean dotted) {
         if (key.isEmpty()) {
             return false;
         }
@@ -58,7 +71,7 @@ final class Syntax {
         }
         for (int i = 1; i < key.length(); i++) {
             char c = key.charAt(i);
-            if (!(isAsciiLetter(c) || isAsciiDigit(c) || c == '_' || c == '.' || c == '-')) {
+            if (!(isAsciiLetter(c) || isAsciiDigit(c) || c == '_' || c == '-' || (dotted && c == '.'))) {
                 return false;
             }
         }
@@ -184,16 +197,6 @@ final class Syntax {
             }
         }
         return false;
-    }
-
-    /** Builds the path of a map member. */
-    static String memberPath(String parent, String key) {
-        return parent == null || parent.isEmpty() ? key : parent + "." + key;
-    }
-
-    /** Builds the path of an array element. */
-    static String elementPath(String parent, int index) {
-        return (parent == null ? "" : parent) + "[" + index + "]";
     }
 
     private static boolean isAsciiLetter(char c) {

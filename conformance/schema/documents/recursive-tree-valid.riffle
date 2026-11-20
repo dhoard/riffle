@@ -1,0 +1,11 @@
+name : root
+children : [
+    {
+        name : branch
+        children : [
+            {
+                name : leaf
+            }
+        ]
+    }
+]

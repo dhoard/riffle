@@ -1,0 +1,9 @@
+riffleSchema : 1
+root : {
+    type : array
+    optional : true
+    items : {
+        type : string
+        default : x
+    }
+}

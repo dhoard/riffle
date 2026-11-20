@@ -2,7 +2,7 @@
 
 **Riffle 0.1.0** is a small, deterministic, line-oriented configuration language built on one principle: **the text you write is exactly the text the program receives.** Java 17 is the reference implementation in this repository, but the language is defined independently of Java.
 
-[`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) is the normative specification for every implementation; this file is the Java binding guide. Java type names in the spec appear only in non-normative appendices.
+[`LANGUAGE_SPEC.md`](LANGUAGE_SPEC.md) is the normative specification of the language for every implementation, and [`SCHEMA_SPEC.md`](SCHEMA_SPEC.md) is the normative specification of **schemas**: schema documents and schema-validated parsing. This file is the Java binding guide for both. Java type names in the specs appear only in non-normative appendices.
 
 ## Why Riffle
 
@@ -54,7 +54,7 @@ systemPrompt : """
 | **Multiline strings** | Raw `"""` blocks | `\n` escapes only | Literal and folded block scalars | `"""` and `'''` strings | Literal and folded block scalars |
 | **Number precision** | Text is kept exactly; decimals read as exact base-10 | Left to the implementation; often IEEE 754 doubles | Left to the implementation | 64-bit integers; floats are IEEE 754 binary64 | Text is kept until a schema converts it |
 
-Riffle is narrower than these formats. It has no inline nonempty collections, no trailing comments, and no schema language.
+Riffle is narrower than these formats. It has no inline nonempty collections, no trailing comments, no anchors, aliases or merge keys, and no tags. A Riffle schema is a separate document that says what the values in a configuration file must look like; it never retypes a value, and the text a value holds stays exactly as written.
 
 ## Language
 
@@ -163,6 +163,10 @@ query : """
 - There is no newline after the last line. To end the value with one, leave an empty last line.
 - `x : """abc"""` is an ordinary single-line quoted value.
 - A block cannot contain a line that is only `"""`, and it cannot be a key. Use a quoted string with `\n` for such text.
+- A raw block is not a Java text block. Only the closer's indentation is removed, so a line indented less than
+  the closer is an error rather than something to re-format; no escape is processed, so a backslash and an `n`
+  stay a backslash and an `n`; and a line that is only `"""` cannot appear inside one. There is no delimiter to
+  choose, so text that holds `"""` on a line of its own has no raw form.
 
 ### Arrays
 An array holds one value per line:
@@ -199,12 +203,16 @@ values : [
 | a lone CR | LF or CRLF |
 
 ### Limits
-- Nesting deeper than 128 collections is a resource-limit error. The writer applies the same
-  bound: a value tree that deep has no valid document, so `Riffle.write` throws
-  `IllegalArgumentException` instead of producing text the parser would reject.
-- Parsing and writing keep time and memory proportional to the document; there is no
+- Nesting is unbounded by default: the parser, writer, validator, defaults, and Java conversion
+  traverse value trees iteratively, so depth is limited only by available memory. A host that reads
+  untrusted input can pass `RiffleOptions.maxDepth(n)` to those operations; exceeding the cap gives
+  `RESOURCE_LIMIT_EXCEEDED` when parsing and `IllegalArgumentException` elsewhere.
+- Parsing and writing keep time and memory proportional to the document; there is no mandatory
   document-size limit. Bound untrusted input yourself, with a size check before `parse(Path)` or
   a bounded `Reader`.
+- A schema pattern compiles to at most 10,000 matcher states. A pattern that expands past that bound,
+  such as nested `{100}` quantifiers, is an `INVALID_PATTERN` load problem; the 1000-repeat cap below
+  applies to each individual quantifier. Groups may nest at most 100 levels.
 
 ## Java API
 
@@ -291,7 +299,7 @@ RiffleValue port = RiffleJavaValues.fromJava((Object) 8080);
 | map | unmodifiable, insertion-ordered `Map<String, Object>` |
 | array | unmodifiable `List<Object>` |
 
-`toJava` never produces `null`. `fromJava` accepts `String`, `Integer`, `Long`, `BigDecimal`, `Boolean`, `Map` with `String` keys, and `List`. Numbers and booleans become canonical text that the matching accessor accepts. It rejects `null`, other types and cycles with `IllegalArgumentException`, and enforces the same nesting bound. Source locations and paths are lost in a round trip.
+`toJava` never produces `null`. `fromJava` accepts `String`, `Integer`, `Long`, `BigDecimal`, `Boolean`, `Map` with `String` keys, and `List`. Numbers and booleans become canonical text that the matching accessor accepts. It rejects `null`, other types and cycles with `IllegalArgumentException`; an optional `RiffleOptions` cap can also bound nesting. Source locations and paths are lost in a round trip.
 
 ### Errors
 - `RiffleParseException` reports invalid documents. It carries a stable `RiffleError` category, a location, and a message of the form `location: reason`.
@@ -306,6 +314,9 @@ RiffleValue port = RiffleJavaValues.fromJava((Object) 8080);
 | `INVALID_VALUE` | an application-defined conversion failed |
 
 - Messages never include scalar values, so secrets in configuration do not reach logs.
+- A schema adds two more failure types, `RiffleSchemaException` for a broken schema and
+  `RiffleValidationException` for invalid configuration, each carrying an ordered list of `RiffleProblem`
+  values; see [Schemas](#schemas).
 - Construction errors are `IllegalArgumentException`s; I/O failures are `IOException`s. Malformed UTF-8 in a file is a parse error with category `INVALID_UTF8`.
 
 ### Constructing values
@@ -314,12 +325,120 @@ RiffleValue port = RiffleJavaValues.fromJava((Object) 8080);
 ### Application-specific types
 Conversions for durations, URIs, colors or enums belong in the application as functions over `asString()`. Throw `new RiffleAccessException(value, reason)` to report them in the same form as Riffle's own errors; the category is `INVALID_VALUE`.
 
+## Schemas
+
+A **schema** is a Riffle document that says what a configuration document must look like: which keys it may
+hold, what each value may be, which members are optional, and which combinations are allowed. Validating
+against a schema never changes a value and never stops at the first mistake: it reports every problem in one
+deterministic order, and each problem names a category, a path, and a line.
+
+[`examples/service.schema.riffle`](examples/service.schema.riffle) is the schema SCHEMA_SPEC.md §2 works
+through; three members of it:
+
+```riffle
+name : {
+    type : string
+    notBlank : true
+}
+port : {
+    type : integer
+    min : 1
+    max : 65535
+    optional : true
+    default : 8080
+}
+env : {
+    type : map
+    optional : true
+    keyPattern : "[A-Z_][A-Z0-9_]*"
+    otherKeys : {
+        type : string
+    }
+}
+```
+
+A node says which kind it is with `type` - `string`, `integer`, `decimal`, `boolean`, `map`, `array`, `ref`,
+`taggedUnion`, `kindUnion`, or `any` - and constrains it with the keywords that belong to that type:
+`minLength`, `pattern`, `values`, `notBlank` for a string; `min`, `max`, `minExclusive` for a number; `keys`,
+`otherKeys`, `keyPattern`, `minKeys`, `rules` for a map; `items`, `minItems`, `unique`, `uniqueKey` for an
+array. A member node may add `optional : true` and a `default`. `definitions` holds reusable nodes addressed
+by `type : ref`, and `rules` say what one member cannot say alone, such as `atMostOne`, `requires`, or
+`memberOf`. A `keyPattern` or `pattern` is matched by the I-Regexp engine of SCHEMA_SPEC.md §6, whole-string,
+and never by `java.util.regex`. The whole vocabulary is in [`SCHEMA_SPEC.md`](SCHEMA_SPEC.md).
+
+```java
+import io.github.dhoard.riffle.*;
+import java.nio.file.Path;
+import java.util.List;
+
+RiffleSchema schema = RiffleSchema.parse(Path.of("examples/service.schema.riffle"));
+
+// optional resource cap for untrusted input
+RiffleOptions options = RiffleOptions.maxDepth(128);
+RiffleObject bounded = Riffle.parse(text, schema, options);
+
+// parse and validate in one step; an invalid document throws
+RiffleObject service = Riffle.parse(Path.of("service.riffle"), schema);
+
+// or validate a document you already hold and read every problem
+List<RiffleProblem> problems = schema.validate(Riffle.parse(Path.of("examples/service.riffle")));
+for (RiffleProblem problem : problems) {
+    System.err.println(problem);
+}
+
+// defaults are a separate operation, because validation never inserts anything
+RiffleObject filled = schema.applyDefaults(Riffle.parse("name : gateway\nurl : https://example.org/x\n"));
+```
+
+`examples/service.riffle` is invalid against that schema, and the loop above prints:
+
+```
+examples/service.riffle:1:8: port: expected at least 1
+examples/service.riffle:5:5: env.region: the key does not match the pattern `[A-Z_][A-Z0-9_]*`
+examples/service.riffle:6:5: env.lower_key: the key does not match the pattern `[A-Z_][A-Z0-9_]*`
+examples/service.riffle:8:1: extra: is not a declared key
+examples/service.riffle:1:1: name: is required
+examples/service.riffle:1:1: (root): at most one of `command`, `url` may be present
+```
+
+- The categories are the stable ones listed in SCHEMA_SPEC.md §10. The category, path, line, and the number of
+  problems are normative; the column and the wording of a reason are not. Paths render in the syntax of
+  LANGUAGE_SPEC.md §10.1, and the root is `(root)`.
+- `RiffleSchema` is immutable and thread-safe, so one schema can validate every document a program reads. The
+  three forms load one schema - a `String`, a `Reader` (which it does not close), or a UTF-8 `Path` - and the
+  same three forms parse a document. A broken schema is a `RiffleSchemaException`; invalid configuration is a
+  `RiffleValidationException`; both carry the same ordered problem list.
+- Loading a schema is three phases - the version, then structure against the meta-schema, then semantics - and
+  a failing phase stops the later ones. A problem in a schema document names a path **in the schema**, such as
+  `root.keys.port.default`, not a path in any configuration file.
+- `applyDefaults` inserts an absent optional member's `default` after the entries the document already had, in
+  the order the schema declares them, and recurses into the values it inserted. It inserts nothing into a
+  document that has any problem, and it never reorders, removes, or coerces an entry that was present.
+- A reason may quote schema text - a bound, an allowed value, a case name - but no category, path beyond the
+  keys it names, or reason ever holds a value from a configuration document: `port: expected at least 1`,
+  never `port: 0 is less than 1`.
+- Three documented limits belong to schema patterns. A range quantifier whose maximum count exceeds 1000, such as
+  `a{0,1001}`, is rejected (`INVALID_PATTERN`), because patterns are matched by a Thompson engine that never
+  backtracks; a pattern whose expanded form needs more than 10,000 matcher states is rejected for the same
+  category, so nested quantifiers cannot exhaust the loader; and groups nested more than 100 levels are rejected
+  so parser recursion cannot exhaust the stack. Nesting is otherwise unbounded; pass
+  `RiffleOptions.maxDepth(n)` if your application needs a cap on parsed documents, written trees,
+  validation, or defaults.
+
 ## Conformance
 
-[`conformance/`](conformance/README.md) contains language-neutral fixtures, a JSON manifest with semantic and accessor expectations and expected canonical bytes, and a Java runner that discovers cases at runtime. It is the contract for future non-Java implementations; it does not imply that Go, Rust, or Python implementations already exist.
+[`conformance/`](conformance/README.md) contains language-neutral fixtures and JSON manifests, and Java runners
+that discover the cases at runtime. `conformance/manifest.json` holds the language suite - semantic and
+accessor expectations and expected canonical bytes - and `conformance/schema/` holds the schema suite: valid and
+invalid schema documents, documents validated against them, and the ordered category, path, and line each one
+must report. The schema suite also pins the meta-schema of SCHEMA_SPEC.md §15: the shipped resource, the
+fixture copy, and the specification text are byte-identical, and that meta-schema validates itself. These
+suites are the contract for future non-Java implementations; they do not imply that Go, Rust, or Python
+implementations already exist.
 
 ```shell
 ./mvnw test -Dtest=ConformanceTest
+./mvnw test -Dtest=SchemaConformanceTest
 ```
 
 ## Editor support
@@ -347,12 +466,18 @@ publishing. Main sources have no runtime dependencies. Tests use JUnit 6 and Ass
 
 ## Scope and limitations
 - Human-authored application configuration only; not a data interchange or protocol format.
-- No type inference, schemas, variable expansion, include, merge, substitution or computation.
+- No type inference in the language itself: a schema constrains values from outside the language and never
+  retypes them.
+- No variable expansion, include, merge, substitution or computation.
 - Comments, blank lines and original quoting are not preserved by the canonical writer.
-- Native conversions drop source metadata and do not provide POJO/record binding, reflection mapping, schemas, or application object construction.
+- Native conversions drop source metadata and do not provide POJO/record binding, reflection mapping, or
+  application object construction.
 - `Riffle.write(Path, …)` truncates the file and then writes it, so an interrupted write can
   leave a partial document; write a temporary file and move it if that matters.
-- Version 0.1.0 is unreleased; the language and API may still change.
+- A schema constrains strings, maps, and arrays. It has no dates, durations, or enum kind, it cannot reach
+  across documents, and it never coerces a value into another kind. Schema version 1 has no extension
+  mechanism, and an unknown keyword is a problem rather than a thing to ignore.
+- Version 0.1.0 is unreleased; the language, the schemas, and the API may still change.
 
 ## License
 

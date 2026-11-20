@@ -1,0 +1,39 @@
+riffleSchema : 1
+definitions : {
+    address : {
+        type : map
+        keys : {
+            host : {
+                type : string
+                notBlank : true
+            }
+            port : {
+                type : integer
+                min : 1
+                max : 65535
+            }
+        }
+    }
+}
+root : {
+    type : map
+    keys : {
+        primary : {
+            type : ref
+            definition : address
+        }
+        backup : {
+            type : ref
+            definition : address
+            optional : true
+        }
+        all : {
+            type : array
+            optional : true
+            items : {
+                type : ref
+                definition : address
+            }
+        }
+    }
+}

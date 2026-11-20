@@ -1,0 +1,6 @@
+riffleSchema : 1
+root : {
+    type : integer
+    min : 1
+    max : 0
+}

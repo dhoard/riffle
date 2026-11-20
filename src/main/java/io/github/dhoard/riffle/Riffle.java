@@ -18,11 +18,10 @@ import java.util.Objects;
  * <p>The document root is always an implicit map, and every scalar is a string. The program
  * decides how to read a string through the {@link RiffleValue} accessors.</p>
  *
- * <p>Parsing reads the whole document into memory, and the only structural limit is nesting
- * depth ({@value io.github.dhoard.riffle.Limits#MAX_DEPTH} collections); time and memory stay
- * proportional to the input. Applications that read untrusted documents should bound their size
- * themselves, for example with a size check before {@link #parse(Path)} or a bounded
- * {@link Reader}.</p>
+ * <p>Parsing reads the whole document into memory and has no fixed nesting limit; time and memory
+ * stay proportional to the input. Applications that read untrusted documents can pass
+ * {@link RiffleOptions#maxDepth(int)} and should bound their size themselves, for example with a
+ * size check before {@link #parse(Path, RiffleOptions)} or a bounded {@link Reader}.</p>
  */
 public final class Riffle {
     private Riffle() {}
@@ -35,7 +34,21 @@ public final class Riffle {
      * @throws RiffleParseException if the document is not valid Riffle
      */
     public static RiffleObject parse(String text) {
-        return new RiffleParser(Objects.requireNonNull(text, "text"), null).parse();
+        return parse(text, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Parses a document with caller-supplied resource options.
+     *
+     * @param text the document
+     * @param options the resource options
+     * @return the root map
+     * @throws RiffleParseException if the document is not valid Riffle, or exceeds a configured cap
+     */
+    public static RiffleObject parse(String text, RiffleOptions options) {
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(options, "options");
+        return new RiffleParser(text, null, options).parse();
     }
 
     /**
@@ -47,10 +60,25 @@ public final class Riffle {
      * @throws RiffleParseException if the document is not valid Riffle
      */
     public static RiffleObject parse(Reader reader) throws IOException {
+        return parse(reader, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Reads all characters from {@code reader} and parses them with caller-supplied options. The
+     * reader is not closed.
+     *
+     * @param reader the source
+     * @param options the resource options
+     * @return the root map
+     * @throws IOException if reading fails
+     * @throws RiffleParseException if the document is not valid Riffle, or exceeds a configured cap
+     */
+    public static RiffleObject parse(Reader reader, RiffleOptions options) throws IOException {
         Objects.requireNonNull(reader, "reader");
+        Objects.requireNonNull(options, "options");
         StringWriter text = new StringWriter();
         reader.transferTo(text);
-        return new RiffleParser(text.toString(), null).parse();
+        return new RiffleParser(text.toString(), null, options).parse();
     }
 
     /**
@@ -62,9 +90,121 @@ public final class Riffle {
      * @throws RiffleParseException if the file is not valid UTF-8 or not valid Riffle
      */
     public static RiffleObject parse(Path file) throws IOException {
+        return parse(file, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Reads a UTF-8 file and parses it with caller-supplied options. Diagnostics name the file.
+     *
+     * @param file the file to read
+     * @param options the resource options
+     * @return the root map
+     * @throws IOException if the file cannot be read
+     * @throws RiffleParseException if the document is invalid, or exceeds a configured cap
+     */
+    public static RiffleObject parse(Path file, RiffleOptions options) throws IOException {
         Objects.requireNonNull(file, "file");
+        Objects.requireNonNull(options, "options");
         byte[] bytes = Files.readAllBytes(file);
-        return new RiffleParser(decode(bytes, file.toString()), file.toString()).parse();
+        return new RiffleParser(decode(bytes, file.toString()), file.toString(), options).parse();
+    }
+
+    /**
+     * Parses a document and validates it against a schema, so that a host that has a schema for its
+     * configuration needs one call. A document that violates the schema is still a complete document:
+     * the exception carries every violation, and nothing is inserted, reordered or coerced.
+     *
+     * @param text the document
+     * @param schema the schema to validate the document against
+     * @return the root map
+     * @throws NullPointerException if {@code schema} is null
+     * @throws RiffleParseException if the document is not valid Riffle
+     * @throws RiffleValidationException if the document violates {@code schema}
+     */
+    public static RiffleObject parse(String text, RiffleSchema schema) {
+        return parse(text, schema, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Parses and validates with caller-supplied resource options.
+     *
+     * @param text the document
+     * @param schema the schema to validate against
+     * @param options the resource options
+     * @return the root map
+     * @throws RiffleParseException if the document is invalid, or exceeds a configured cap
+     * @throws RiffleValidationException if the document violates {@code schema}
+     */
+    public static RiffleObject parse(String text, RiffleSchema schema, RiffleOptions options) {
+        Objects.requireNonNull(schema, "schema");
+        Objects.requireNonNull(options, "options");
+        return schema.validated(parse(text, options), options);
+    }
+
+    /**
+     * Reads all characters from {@code reader}, parses them, and validates the document against a
+     * schema. The reader is not closed.
+     *
+     * @param reader the source
+     * @param schema the schema to validate the document against
+     * @return the root map
+     * @throws NullPointerException if {@code schema} is null
+     * @throws IOException if reading fails
+     * @throws RiffleParseException if the document is not valid Riffle
+     * @throws RiffleValidationException if the document violates {@code schema}
+     */
+    public static RiffleObject parse(Reader reader, RiffleSchema schema) throws IOException {
+        return parse(reader, schema, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Parses and validates a reader with caller-supplied resource options. The reader is not closed.
+     *
+     * @param reader the source
+     * @param schema the schema to validate against
+     * @param options the resource options
+     * @return the root map
+     * @throws IOException if reading fails
+     * @throws RiffleParseException if the document is invalid, or exceeds a configured cap
+     * @throws RiffleValidationException if the document violates {@code schema}
+     */
+    public static RiffleObject parse(Reader reader, RiffleSchema schema, RiffleOptions options) throws IOException {
+        Objects.requireNonNull(schema, "schema");
+        Objects.requireNonNull(options, "options");
+        return schema.validated(parse(reader, options), options);
+    }
+
+    /**
+     * Reads a UTF-8 file, parses it, and validates the document against a schema. Diagnostics name
+     * the file.
+     *
+     * @param file the file
+     * @param schema the schema to validate the document against
+     * @return the root map
+     * @throws NullPointerException if {@code schema} is null
+     * @throws IOException if reading fails
+     * @throws RiffleParseException if the file is not valid UTF-8 or not valid Riffle
+     * @throws RiffleValidationException if the document violates {@code schema}
+     */
+    public static RiffleObject parse(Path file, RiffleSchema schema) throws IOException {
+        return parse(file, schema, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Parses and validates a file with caller-supplied resource options.
+     *
+     * @param file the file to read
+     * @param schema the schema to validate against
+     * @param options the resource options
+     * @return the root map
+     * @throws IOException if the file cannot be read
+     * @throws RiffleParseException if the document is invalid, or exceeds a configured cap
+     * @throws RiffleValidationException if the document violates {@code schema}
+     */
+    public static RiffleObject parse(Path file, RiffleSchema schema, RiffleOptions options) throws IOException {
+        Objects.requireNonNull(schema, "schema");
+        Objects.requireNonNull(options, "options");
+        return schema.validated(parse(file, options), options);
     }
 
     /**
@@ -73,15 +213,28 @@ public final class Riffle {
      * @param container the root map
      * @return the document
      * @throws IllegalArgumentException if {@code container} is an array, which cannot be a root,
-     *     or if the value nests deeper than {@value io.github.dhoard.riffle.Limits#MAX_DEPTH}
-     *     collections, which no valid document can express
+     *     or if the value is deeper than a configured cap
      */
     public static String write(RiffleContainer container) {
+        return write(container, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Writes the canonical document with caller-supplied resource options.
+     *
+     * @param container the root map
+     * @param options the resource options
+     * @return the document
+     * @throws IllegalArgumentException if {@code container} is an array, which cannot be a root, or
+     *     if the value is deeper than a configured cap
+     */
+    public static String write(RiffleContainer container, RiffleOptions options) {
         Objects.requireNonNull(container, "container");
+        Objects.requireNonNull(options, "options");
         if (!(container instanceof RiffleObject root)) {
             throw new IllegalArgumentException("the root of a Riffle document is a map");
         }
-        return RiffleWriter.write(root);
+        return RiffleWriter.write(root, options);
     }
 
     /**
@@ -94,11 +247,24 @@ public final class Riffle {
      * @param file the file
      * @param container the root map
      * @throws IOException if writing fails
-     * @throws IllegalArgumentException if {@code container} is an array or nests too deeply
+     * @throws IllegalArgumentException if {@code container} is an array or exceeds a configured cap
      */
     public static void write(Path file, RiffleContainer container) throws IOException {
+        write(file, container, RiffleOptions.UNBOUNDED);
+    }
+
+    /**
+     * Writes the canonical document as UTF-8 with caller-supplied resource options.
+     *
+     * @param file the file to write
+     * @param container the root map
+     * @param options the resource options
+     * @throws IOException if writing fails
+     * @throws IllegalArgumentException if {@code container} is an array or exceeds a configured cap
+     */
+    public static void write(Path file, RiffleContainer container, RiffleOptions options) throws IOException {
         Objects.requireNonNull(file, "file");
-        Files.writeString(file, write(container), StandardCharsets.UTF_8);
+        Files.writeString(file, write(container, options), StandardCharsets.UTF_8);
     }
 
     private static String decode(byte[] bytes, String source) {

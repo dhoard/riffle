@@ -1,0 +1,10 @@
+text : hello
+stage : prod
+count : -3
+ratio : 0.25
+enabled : true
+codes : 404
+free : [
+    1
+    two
+]

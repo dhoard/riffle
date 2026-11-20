@@ -1,0 +1,23 @@
+riffleSchema : 1
+definitions : {
+    tree : {
+        type : map
+        keys : {
+            name : {
+                type : string
+            }
+            children : {
+                type : array
+                optional : true
+                items : {
+                    type : ref
+                    definition : tree
+                }
+            }
+        }
+    }
+}
+root : {
+    type : ref
+    definition : tree
+}

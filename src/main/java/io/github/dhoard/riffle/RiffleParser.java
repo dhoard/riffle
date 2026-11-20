@@ -1,6 +1,8 @@
 package io.github.dhoard.riffle;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -16,11 +18,17 @@ import java.util.List;
  */
 final class RiffleParser {
     private final String source;
+    private final RiffleOptions options;
     private final List<String> lines = new ArrayList<>();
     private int next;
 
     RiffleParser(String text, String source) {
+        this(text, source, RiffleOptions.UNBOUNDED);
+    }
+
+    RiffleParser(String text, String source, RiffleOptions options) {
         this.source = source;
+        this.options = options;
         String body = !text.isEmpty() && text.charAt(0) == Syntax.BYTE_ORDER_MARK ? text.substring(1) : text;
         validateCodePoints(body);
         splitLines(body);
@@ -28,7 +36,179 @@ final class RiffleParser {
 
     RiffleObject parse() {
         next = 0;
-        return readMap(at(0, 0), "", 0, true);
+        Deque<Frame> stack = new ArrayDeque<>();
+        stack.push(Frame.root(at(0, 0)));
+        while (!stack.isEmpty()) {
+            Frame frame = stack.peek();
+            int index = nextContentLine();
+            if (index < 0) {
+                if (frame.root) {
+                    return (RiffleObject) frame.value();
+                }
+                throw new RiffleParseException(
+                        RiffleError.UNCLOSED_COLLECTION, "unclosed collection; a closer is expected", frame.opener);
+            }
+            String raw = lines.get(index);
+            int start = Syntax.firstNonWhitespace(raw, 0);
+            char first = raw.charAt(start);
+            char closer = frame.map ? '}' : ']';
+            if (first == closer) {
+                onlyWhitespace(raw, start + 1, index);
+                if (frame.root) {
+                    throw error(RiffleError.UNEXPECTED_CLOSER, "unexpected '}'", index, start);
+                }
+                stack.pop();
+                attach(stack.peek(), frame.value());
+                continue;
+            }
+            if (first == (frame.map ? ']' : '}')) {
+                throw error(
+                        RiffleError.MISMATCHED_CLOSER,
+                        frame.map ? "expected '}' but found ']'" : "expected ']' but found '}'",
+                        index,
+                        start);
+            }
+            if (frame.map) {
+                int position = readKey(raw, start, index, frame);
+                RifflePath memberPath = frame.path.key(frame.key);
+                int valueStart = Syntax.firstNonWhitespace(raw, position);
+                if (valueStart >= raw.length()) {
+                    attach(frame, new RiffleString("", memberPath, at(index, position)));
+                } else {
+                    readValue(raw, valueStart, index, memberPath, frame, stack);
+                }
+            } else {
+                RifflePath elementPath = frame.path.index(frame.values.size());
+                readValue(raw, start, index, elementPath, frame, stack);
+            }
+        }
+        throw new IllegalStateException("the parser's root frame was lost");
+    }
+
+    /** Reads the key of one map entry and records where it was written. */
+    private int readKey(String raw, int start, int lineIndex, Frame frame) {
+        int pos = start;
+        String key;
+        if (raw.charAt(start) == '"') {
+            Quoted quoted = quotedKey(raw, pos, lineIndex);
+            key = quoted.text;
+            pos = Syntax.firstNonWhitespace(raw, quoted.end);
+            if (pos >= raw.length() || raw.charAt(pos) != ':') {
+                throw error(
+                        RiffleError.MISSING_COLON,
+                        "expected ':' after the key",
+                        lineIndex,
+                        Math.min(pos, raw.length()));
+            }
+            pos++;
+        } else {
+            int colon = raw.indexOf(':', pos);
+            if (colon < 0) {
+                throw error(RiffleError.MISSING_COLON, "expected 'key : value'", lineIndex, start);
+            }
+            String candidate = Syntax.trim(raw.substring(pos, colon));
+            if (!Syntax.isBareKey(candidate)) {
+                throw error(RiffleError.INVALID_KEY, "invalid key; quote it", lineIndex, pos);
+            }
+            key = candidate;
+            pos = colon + 1;
+        }
+        if (frame.entries.containsKey(key)) {
+            throw error(RiffleError.DUPLICATE_KEY, "duplicate key", lineIndex, start);
+        }
+        frame.key = key;
+        frame.keyLocations.put(key, at(lineIndex, start));
+        return pos;
+    }
+
+    /** Reads one value, either attaching it to {@code frame} or pushing a child collection frame. */
+    private void readValue(String line, int from, int lineIndex, RifflePath path, Frame frame, Deque<Frame> stack) {
+        char first = line.charAt(from);
+        RiffleLocation location = at(lineIndex, from);
+        switch (first) {
+            case '"' -> {
+                if (line.substring(from, Syntax.trimEnd(line, from)).equals(Syntax.RAW_BLOCK_DELIMITER)) {
+                    attach(frame, rawBlock(lineIndex, from, path, location));
+                    return;
+                }
+                Quoted quoted = quotedValue(line, from, lineIndex);
+                onlyWhitespace(line, quoted.end, lineIndex);
+                attach(frame, new RiffleString(quoted.text, path, location));
+            }
+            case '@' ->
+                throw error(RiffleError.INVALID_VALUE, "a value starting with '@' must be quoted", lineIndex, from);
+            case '{' -> {
+                if (from + 1 < line.length() && line.charAt(from + 1) == '}') {
+                    afterEmptyCollection(line, from + 2, lineIndex, "{}", "map");
+                    attach(frame, new RiffleObject(new LinkedHashMap<>(), null, path, location));
+                    return;
+                }
+                openerLast(line, from + 1, lineIndex, '{', '}', "a map", "entries");
+                checkDepth(frame.depth + 1, location);
+                stack.push(Frame.child(true, location, path, frame.depth + 1));
+            }
+            case '[' -> {
+                if (from + 1 < line.length() && line.charAt(from + 1) == ']') {
+                    afterEmptyCollection(line, from + 2, lineIndex, "[]", "array");
+                    attach(frame, new RiffleArray(new ArrayList<>(), path, location));
+                    return;
+                }
+                openerLast(line, from + 1, lineIndex, '[', ']', "an array", "elements");
+                checkDepth(frame.depth + 1, location);
+                stack.push(Frame.child(false, location, path, frame.depth + 1));
+            }
+            case '}', ']' ->
+                throw error(
+                        RiffleError.INVALID_VALUE,
+                        "a bare value cannot start with '" + first + "'; quote it",
+                        lineIndex,
+                        from);
+            default -> attach(frame, bareString(line, from, lineIndex, path, location));
+        }
+    }
+
+    private static void attach(Frame parent, RiffleValue value) {
+        if (parent == null) {
+            return;
+        }
+        if (parent.map) {
+            parent.entries.put(parent.key, value);
+        } else {
+            parent.values.add(value);
+        }
+    }
+
+    /** One open collection. The stack of these replaces recursion over document depth. */
+    private static final class Frame {
+        private final boolean map;
+        private final boolean root;
+        private final RiffleLocation opener;
+        private final RifflePath path;
+        private final int depth;
+        private final LinkedHashMap<String, RiffleValue> entries = new LinkedHashMap<>();
+        private final LinkedHashMap<String, RiffleLocation> keyLocations = new LinkedHashMap<>();
+        private final List<RiffleValue> values = new ArrayList<>();
+        private String key;
+
+        private Frame(boolean map, boolean root, RiffleLocation opener, RifflePath path, int depth) {
+            this.map = map;
+            this.root = root;
+            this.opener = opener;
+            this.path = path;
+            this.depth = depth;
+        }
+
+        private static Frame root(RiffleLocation opener) {
+            return new Frame(true, true, opener, RifflePath.root(), 0);
+        }
+
+        private static Frame child(boolean map, RiffleLocation opener, RifflePath path, int depth) {
+            return new Frame(map, false, opener, path, depth);
+        }
+
+        private RiffleValue value() {
+            return map ? new RiffleObject(entries, keyLocations, path, opener) : new RiffleArray(values, path, opener);
+        }
     }
 
     // ---------------------------------------------------------------- lexical
@@ -192,139 +372,11 @@ final class RiffleParser {
         }
     }
 
-    // ---------------------------------------------------------------- maps
-
-    private RiffleObject readMap(RiffleLocation opener, String path, int depth, boolean root) {
-        LinkedHashMap<String, RiffleValue> entries = new LinkedHashMap<>();
-        for (int index = nextContentLine(); index >= 0; index = nextContentLine()) {
-            String raw = lines.get(index);
-            int start = Syntax.firstNonWhitespace(raw, 0);
-            char first = raw.charAt(start);
-            if (first == '}') {
-                onlyWhitespace(raw, start + 1, index);
-                if (root) {
-                    throw error(RiffleError.UNEXPECTED_CLOSER, "unexpected '}'", index, start);
-                }
-                return new RiffleObject(entries, path, opener);
-            }
-            if (first == ']') {
-                throw error(RiffleError.MISMATCHED_CLOSER, "expected '}' but found ']'", index, start);
-            }
-
-            int pos = start;
-            String key;
-            if (first == '"') {
-                Quoted quoted = quotedKey(raw, pos, index);
-                key = quoted.text;
-                pos = Syntax.firstNonWhitespace(raw, quoted.end);
-                if (pos >= raw.length() || raw.charAt(pos) != ':') {
-                    throw error(
-                            RiffleError.MISSING_COLON,
-                            "expected ':' after the key",
-                            index,
-                            Math.min(pos, raw.length()));
-                }
-                pos++;
-            } else {
-                int colon = raw.indexOf(':', pos);
-                if (colon < 0) {
-                    throw error(RiffleError.MISSING_COLON, "expected 'key : value'", index, start);
-                }
-                String candidate = Syntax.trim(raw.substring(pos, colon));
-                if (!Syntax.isBareKey(candidate)) {
-                    throw error(RiffleError.INVALID_KEY, "invalid key; quote it", index, pos);
-                }
-                key = candidate;
-                pos = colon + 1;
-            }
-            if (entries.containsKey(key)) {
-                throw error(RiffleError.DUPLICATE_KEY, "duplicate key", index, start);
-            }
-
-            int valueStart = Syntax.firstNonWhitespace(raw, pos);
-            String memberPath = Syntax.memberPath(path, key);
-            RiffleValue value = valueStart >= raw.length()
-                    ? new RiffleString("", memberPath, at(index, pos))
-                    : value(raw, valueStart, index, memberPath, depth);
-            entries.put(key, value);
-        }
-        if (!root) {
-            throw new RiffleParseException(RiffleError.UNCLOSED_COLLECTION, "unclosed map; '}' expected", opener);
-        }
-        return new RiffleObject(entries, path, opener);
-    }
-
-    // ---------------------------------------------------------------- arrays
-
-    private RiffleArray readArray(RiffleLocation opener, String path, int depth) {
-        List<RiffleValue> values = new ArrayList<>();
-        for (int index = nextContentLine(); index >= 0; index = nextContentLine()) {
-            String raw = lines.get(index);
-            int start = Syntax.firstNonWhitespace(raw, 0);
-            char first = raw.charAt(start);
-            if (first == ']') {
-                onlyWhitespace(raw, start + 1, index);
-                return new RiffleArray(values, path, opener);
-            }
-            if (first == '}') {
-                throw error(RiffleError.MISMATCHED_CLOSER, "expected ']' but found '}'", index, start);
-            }
-            values.add(value(raw, start, index, Syntax.elementPath(path, values.size()), depth));
-        }
-        throw new RiffleParseException(RiffleError.UNCLOSED_COLLECTION, "unclosed array; ']' expected", opener);
-    }
-
-    // ---------------------------------------------------------------- values
-
-    private RiffleValue value(String line, int from, int lineIndex, String path, int depth) {
-        char first = line.charAt(from);
-        RiffleLocation location = at(lineIndex, from);
-        switch (first) {
-            case '"' -> {
-                if (line.substring(from, Syntax.trimEnd(line, from)).equals(Syntax.RAW_BLOCK_DELIMITER)) {
-                    return rawBlock(lineIndex, from, path, location);
-                }
-                Quoted quoted = quotedValue(line, from, lineIndex);
-                onlyWhitespace(line, quoted.end, lineIndex);
-                return new RiffleString(quoted.text, path, location);
-            }
-            case '@' ->
-                throw error(RiffleError.INVALID_VALUE, "a value starting with '@' must be quoted", lineIndex, from);
-            case '{' -> {
-                if (from + 1 < line.length() && line.charAt(from + 1) == '}') {
-                    afterEmptyCollection(line, from + 2, lineIndex, "{}", "map");
-                    return new RiffleObject(new LinkedHashMap<>(), path, location);
-                }
-                openerLast(line, from + 1, lineIndex, '{', '}', "a map", "entries");
-                checkDepth(depth + 1, location);
-                return readMap(location, path, depth + 1, false);
-            }
-            case '[' -> {
-                if (from + 1 < line.length() && line.charAt(from + 1) == ']') {
-                    afterEmptyCollection(line, from + 2, lineIndex, "[]", "array");
-                    return new RiffleArray(new ArrayList<>(), path, location);
-                }
-                openerLast(line, from + 1, lineIndex, '[', ']', "an array", "elements");
-                checkDepth(depth + 1, location);
-                return readArray(location, path, depth + 1);
-            }
-            case '}', ']' ->
-                throw error(
-                        RiffleError.INVALID_VALUE,
-                        "a bare value cannot start with '" + first + "'; quote it",
-                        lineIndex,
-                        from);
-            default -> {
-                return bareString(line, from, lineIndex, path, location);
-            }
-        }
-    }
-
     /**
      * Reads a raw block whose opener has just been read (LANGUAGE_SPEC.md §5.3). The closer is found
      * first, because its indentation decides how every content line is read.
      */
-    private RiffleString rawBlock(int openerLine, int openerColumn, String path, RiffleLocation location) {
+    private RiffleString rawBlock(int openerLine, int openerColumn, RifflePath path, RiffleLocation location) {
         int closer = next;
         while (closer < lines.size() && !Syntax.isRawBlockDelimiter(lines.get(closer))) {
             closer++;
@@ -378,7 +430,7 @@ final class RiffleParser {
                 column);
     }
 
-    private RiffleString bareString(String line, int from, int lineIndex, String path, RiffleLocation location) {
+    private RiffleString bareString(String line, int from, int lineIndex, RifflePath path, RiffleLocation location) {
         int end = Syntax.trimEnd(line, from);
         String text = line.substring(from, end);
         for (int i = 0; i < text.length(); i++) {
@@ -538,10 +590,10 @@ final class RiffleParser {
     // ---------------------------------------------------------------- helpers
 
     private void checkDepth(int depth, RiffleLocation location) {
-        if (depth > Limits.MAX_DEPTH) {
+        if (options.exceeds(depth)) {
             throw new RiffleParseException(
                     RiffleError.RESOURCE_LIMIT_EXCEEDED,
-                    "maximum nesting depth of " + Limits.MAX_DEPTH + " exceeded",
+                    "maximum nesting depth of " + options.depthLimit() + " exceeded",
                     location);
         }
     }

@@ -294,7 +294,7 @@ class ParserTest {
                 .get("b")
                 .asArray()
                 .get(0);
-        assertThat(value.path()).contains("a.b[0]");
+        assertThat(value.path()).contains(RifflePath.root().key("a").key("b").index(0));
         assertThat(value.location().orElseThrow().line()).isEqualTo(3);
         assertThat(value.location().orElseThrow().column()).isEqualTo(9);
         assertThat(value.asInt()).isEqualTo(1);

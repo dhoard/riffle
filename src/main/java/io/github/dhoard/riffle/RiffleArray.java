@@ -8,10 +8,10 @@ import java.util.Optional;
 /** An immutable ordered sequence of values. */
 public final class RiffleArray implements RiffleContainer {
     private final List<RiffleValue> values;
-    private final String path;
+    private final RifflePath path;
     private final RiffleLocation location;
 
-    RiffleArray(List<RiffleValue> values, String path, RiffleLocation location) {
+    RiffleArray(List<RiffleValue> values, RifflePath path, RiffleLocation location) {
         this.values = List.copyOf(values);
         this.path = path;
         this.location = location;
@@ -41,7 +41,7 @@ public final class RiffleArray implements RiffleContainer {
             throw new RiffleAccessException(
                     RiffleAccessError.MISSING,
                     "index out of range for an array of size " + values.size(),
-                    Syntax.elementPath(path, index),
+                    RifflePath.orRoot(path).index(index),
                     location);
         }
         return values.get(index);
@@ -148,23 +148,23 @@ public final class RiffleArray implements RiffleContainer {
     }
 
     @Override
-    public Optional<String> path() {
+    public Optional<RifflePath> path() {
         return Optional.ofNullable(path);
     }
 
     /** Arrays are equal when their elements are equal in order. */
     @Override
     public boolean equals(Object other) {
-        return other instanceof RiffleArray that && values.equals(that.values);
+        return other instanceof RiffleArray that && ValueEquality.equal(this, that);
     }
 
     @Override
     public int hashCode() {
-        return values.hashCode();
+        return ValueHash.hash(this);
     }
 
     @Override
     public String toString() {
-        return "RiffleArray" + values;
+        return ValuePrinter.toString(this);
     }
 }

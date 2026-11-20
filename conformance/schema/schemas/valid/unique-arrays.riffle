@@ -1,0 +1,30 @@
+riffleSchema : 1
+root : {
+    type : map
+    keys : {
+        values : {
+            type : array
+            items : {
+                type : decimal
+            }
+            unique : true
+        }
+        servers : {
+            type : array
+            optional : true
+            uniqueKey : id
+            items : {
+                type : map
+                keys : {
+                    id : {
+                        type : string
+                    }
+                    weight : {
+                        type : integer
+                        optional : true
+                    }
+                }
+            }
+        }
+    }
+}

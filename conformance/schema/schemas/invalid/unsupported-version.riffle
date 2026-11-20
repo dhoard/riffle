@@ -1,0 +1,5 @@
+riffleSchema : 2
+root : {
+    type : map
+}
+unknownKeyword : 1
