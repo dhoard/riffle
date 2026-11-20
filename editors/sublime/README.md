@@ -48,6 +48,8 @@ key/value grammar, so these cases behave as the language defines them:
   `"He said "hello""` contains quotes, and a value cannot be followed by a
   comment: `"a # b"` is the value `a # b`, while `"a" # trailing` is invalid.
 - A quoted key ends at the first unescaped quote, because a key ends at `:`.
+  Its decoded text must match the same alphabet as a bare key, so quoting is
+  spelling only: `"schema.version"` names a key, `"display name"` does not.
 - Nonempty collections are only accepted in block form, an opener must end its
   line, and a closer must be alone on its line. The inline forms `{ }`
   and `[ one ]` are marked invalid.
@@ -85,6 +87,10 @@ Highlighting is a lexical pass, not a parser. These are deliberately not
 reported, because they are semantic or runtime errors:
 
 - duplicate keys, the nesting limit, and raw-block indentation errors;
+- a quoted key whose decoded text falls outside the key alphabet
+  (`[A-Za-z0-9_][A-Za-z0-9_.-]*`, LANGUAGE_SPEC.md §6.2): `"display name"` is
+  scoped as a quoted key but is rejected by the parser, and a lexical rule
+  cannot tell `"\u0041"` from `"\u4e2d"` without decoding escapes;
 - malformed UTF-8, a lone carriage return, and a BOM inside the document (the
   editor normalizes line endings and strips the BOM before highlighting);
 - an unterminated quoted value: the quote is simply never closed, matching how

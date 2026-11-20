@@ -35,8 +35,17 @@ class ParserRejectionTest {
                 Arguments.of("trailing tokens after quoted string", "x : \"a\" b\n", RiffleError.TRAILING_TOKENS, 1),
                 Arguments.of("mismatched closer", "x : [\n  1\n}\n", RiffleError.MISMATCHED_CLOSER, 3),
                 Arguments.of("duplicate key", "x : a\nx : b\n", RiffleError.DUPLICATE_KEY, 2),
-                Arguments.of("duplicate quoted key", "\"a b\" : 1\na b : 2\n", RiffleError.INVALID_KEY, 2),
+                Arguments.of("duplicate quoted key", "a.b : 1\n\"a.b\" : 2\n", RiffleError.DUPLICATE_KEY, 2),
                 Arguments.of("typed key", "@int 1 : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("empty quoted key", "\"\" : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("quoted key with a space", "\"display name\" : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("quoted key with a quote", "\"a\\\"b\" : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("quoted key holding a non-ascii letter", "\"\\u00e9\" : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("key starting with a dot", ".hidden : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("quoted key starting with a dot", "\".hidden\" : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("key starting with a dash", "-x : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("quoted key starting with a dash", "\"-x\" : a\n", RiffleError.INVALID_KEY, 1),
+                Arguments.of("quoted key holding a slash", "\"a/b\" : a\n", RiffleError.INVALID_KEY, 1),
                 Arguments.of("unterminated string", "x : \"abc\n", RiffleError.UNTERMINATED_STRING, 1),
                 Arguments.of("invalid escape", "x : \"bad\\q\"\n", RiffleError.INVALID_ESCAPE, 1),
                 Arguments.of("dangling escape before boundary", "x : \"abc\\\"\n", RiffleError.INVALID_ESCAPE, 1),
@@ -113,6 +122,18 @@ class ParserRejectionTest {
                     assertThat(e.category()).isEqualTo(RiffleError.INVALID_VALUE);
                     assertThat(e.reason()).isEqualTo("a value starting with '@' must be quoted");
                     assertThat(e.getMessage()).doesNotContain("scope");
+                });
+    }
+
+    @Test
+    void anInvalidKeyNamesTheKeyAlphabetAndNotTheKeyItself() {
+        assertThatThrownBy(() -> Riffle.parse("portKey : 1\n\"secret token\" : 2\n"))
+                .isInstanceOfSatisfying(RiffleParseException.class, e -> {
+                    assertThat(e.category()).isEqualTo(RiffleError.INVALID_KEY);
+                    assertThat(e.reason()).contains("[A-Za-z0-9_][A-Za-z0-9_.-]*");
+                    assertThat(e.getMessage()).doesNotContain("secret");
+                    assertThat(e.location().line()).isEqualTo(2);
+                    assertThat(e.location().column()).isEqualTo(1);
                 });
     }
 

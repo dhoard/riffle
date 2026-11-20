@@ -40,16 +40,17 @@ class RifflePathTest {
     }
 
     @Test
-    void quotesAKeyThatIsNotBare() {
-        assertThat(RifflePath.root().key("display name").toString()).isEqualTo("\"display name\"");
+    void quotesAKeyThatHoldsADot() {
         assertThat(RifflePath.root().key("a.b").toString()).isEqualTo("\"a.b\"");
-        assertThat(RifflePath.root().key("a").index(0).key("display name").toString())
-                .isEqualTo("a[0].\"display name\"");
+        assertThat(RifflePath.root().key("a").index(0).key("a.b").toString()).isEqualTo("a[0].\"a.b\"");
+        // A path segment is not a key. A caller may name a key Riffle cannot spell, and the path
+        // still prints quoted so a diagnostic can show what was asked for.
+        assertThat(RifflePath.root().key("display name").toString()).isEqualTo("\"display name\"");
         assertThat(RifflePath.root().key("").toString()).isEqualTo("\"\"");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"port", "display name", "a.b", "", "say \"hi\"", "tab\tkey", "[bracket]", "#hash", "é"})
+    @ValueSource(strings = {"port", "a.b", "a-b", "_x", "1", "schema.version", "a.b.c"})
     void rendersAKeySoThatTheSameTextParsesBackToIt(String key) {
         RifflePath path = RifflePath.root().key(key);
         RiffleObject document = Riffle.parse(path + " : value\n");

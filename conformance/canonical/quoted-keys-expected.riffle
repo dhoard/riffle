@@ -1,0 +1,6 @@
+schema.version : 1
+chatgpt-oauth : open
+_private : hidden
+A : upper
+plain : visible
+dotted.key : value

@@ -20,7 +20,9 @@ import java.util.Set;
  * so tree depth is bounded only by memory unless a caller passes {@link RiffleOptions#maxDepth(int)}.</p>
  *
  * <p>Resulting maps and lists are defensive, deeply converted, and unmodifiable, and iteration
- * order is preserved. Riffle has no null: an absent key is the only way to express "no value".</p>
+ * order is preserved. Riffle has no null: an absent key is the only way to express "no value". A
+ * Java map key must be a Riffle key (LANGUAGE_SPEC.md §6.2), because a value holding a key that
+ * Riffle cannot spell could not be written out again.</p>
  */
 public final class RiffleJavaValues {
     private static final String NULL_VALUE = "null is not a Riffle value; omit the key instead";
@@ -155,7 +157,8 @@ public final class RiffleJavaValues {
      * @param value the Java value
      * @param options the resource options
      * @return the corresponding Riffle value, with no source metadata
-     * @throws IllegalArgumentException if the value is unsupported, cyclic, or exceeds a configured cap
+     * @throws IllegalArgumentException if the value is unsupported, cyclic, exceeds a configured cap,
+     *         or a map key is not a Riffle key
      */
     public static RiffleValue fromJava(Object value, RiffleOptions options) {
         Objects.requireNonNull(options, "options");

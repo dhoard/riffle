@@ -46,10 +46,10 @@ escaped : "tab\t unicode\u263A bad\q"
 #                       ^^^^^^ constant.character.escape.riffle
 #                                 ^ invalid.illegal.escape.riffle
 
-"display name" : Jane
-#^^^^^^^^^^^^ string.quoted.double.riffle
-#              ^ keyword.operator.assignment.riffle
-#                ^^^^ string.unquoted.riffle
+"schema.version" : Jane
+#^^^^^^^^^^^^^^ string.quoted.double.riffle
+#                ^ keyword.operator.assignment.riffle
+#                  ^^^^ string.unquoted.riffle
 
 emptyMap : {}
 #          ^ punctuation.section.mapping.begin.riffle

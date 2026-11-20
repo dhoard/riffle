@@ -19,12 +19,17 @@
 #     `"He said "hello""` is one string containing quotes, and nothing but
 #     whitespace may follow the closing quote.
 #   * A quoted *key* ends at the first unescaped quote, because a key ends at
-#     `:` rather than at the end of the line.
+#     `:` rather than at the end of the line. Either spelling must decode to
+#     `[A-Za-z0-9_][A-Za-z0-9_.-]*` (LANGUAGE_SPEC.md §6.2), so quoting never
+#     turns `"display name"` into a key.
 #   * A value that is exactly `"""` opens a raw block. Everything up to the line
 #     holding only `"""` is literal content, including comment markers.
 #
 # Semantic errors are deliberately not detected: duplicate keys, raw-block
-# indentation, and malformed UTF-8 are parser concerns, not syntax.
+# indentation, malformed UTF-8, and a quoted key whose decoded text falls
+# outside the key alphabet are parser concerns, not syntax. The last of these
+# cannot be a lexical rule: `"\u0041"` and `"\u4e2d"` differ only after escapes
+# are decoded.
 name: Riffle
 file_extensions:
   - riffle
@@ -78,6 +83,8 @@ contexts:
         2: entity.name.tag.riffle
         4: keyword.operator.assignment.riffle
     # Quoted key: ends at the first unescaped quote and must be followed by `:`.
+    # Its decoded text must satisfy the bare-key pattern above; the parser
+    # decides that, not this grammar.
     - match: '^([ \t]*)(")((?:[^"\\]|\\.)*)(")([ \t]*)(:)'
       captures:
         2: punctuation.definition.string.begin.riffle

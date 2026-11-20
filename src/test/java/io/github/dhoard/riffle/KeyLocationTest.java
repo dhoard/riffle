@@ -37,9 +37,9 @@ class KeyLocationTest {
 
     @Test
     void countsTheOpeningQuoteOfAQuotedKey() {
-        RiffleObject document = Riffle.parse("\"display name\" : Jane\n");
+        RiffleObject document = Riffle.parse("\"display.name\" : Jane\n");
 
-        assertThat(document.keyLocation("display name")).isEqualTo(new RiffleLocation(null, 1, 1));
+        assertThat(document.keyLocation("display.name")).isEqualTo(new RiffleLocation(null, 1, 1));
     }
 
     @Test

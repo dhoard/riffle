@@ -60,7 +60,9 @@ public final class RifflePath implements Serializable {
     /**
      * Returns a path with one more key segment.
      *
-     * @param name the key name, which may be empty and may contain any character
+     * @param name the key name, which may be empty and may contain any character; a parsed document
+     *        only ever holds keys of LANGUAGE_SPEC.md §6.2, and a path naming anything else simply
+     *        fails to access
      * @return the extended path
      */
     public RifflePath key(String name) {
@@ -191,7 +193,7 @@ public final class RifflePath implements Serializable {
             if (Syntax.isBarePathKey(key.key())) {
                 text.append(key.key());
             } else {
-                text.append(Syntax.quoteKey(key.key()));
+                text.append(Syntax.quotePathSegment(key.key()));
             }
         } else if (segment instanceof Index index) {
             text.append('[').append(index.index()).append(']');

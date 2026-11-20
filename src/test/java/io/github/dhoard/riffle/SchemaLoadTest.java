@@ -282,17 +282,17 @@ class SchemaLoadTest {
     }
 
     @Test
-    void quotesAKeyThatIsNotBareWhenItReportsAProblem() {
+    void quotesAKeyThatHoldsADotWhenItReportsAProblem() {
         RiffleSchema schema = RiffleSchema.parse("riffleSchema : 1\nroot : {\n    type : map\n    keys : {\n"
-                + "        \"display name\" : {\n            type : string\n            notBlank : true\n        }\n"
+                + "        display.name : {\n            type : string\n            notBlank : true\n        }\n"
                 + "    }\n}\n");
 
-        RiffleValidationException failure = catchThrowableOfType(
-                RiffleValidationException.class, () -> Riffle.parse("\"display name\" :\n", schema));
+        RiffleValidationException failure =
+                catchThrowableOfType(RiffleValidationException.class, () -> Riffle.parse("display.name :\n", schema));
 
         assertThat(failure.problems()).singleElement().satisfies(problem -> {
             assertThat(problem.category()).isEqualTo(RiffleValidationError.BLANK);
-            assertThat(problem.path().toString()).isEqualTo("\"display name\"");
+            assertThat(problem.path().toString()).isEqualTo("\"display.name\"");
         });
     }
 

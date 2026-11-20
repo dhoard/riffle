@@ -56,7 +56,8 @@ final class RiffleRandom {
         "a\n\uFEFF",
         "https://x:1/y?a=b#c"
     };
-    private static final String[] KEY_PIECES = {"a", "b", "Z", "0", ".", "-", "_", " ", "=", "@", "é", "\n", "\uFEFF"};
+    private static final String[] KEY_PIECES = {"a", "b", "Z", "0", "1", ".", "-", "_"};
+    private static final String[] KEY_STARTS = {"a", "Z", "0", "1", "_"};
 
     private final Random random;
     private boolean singleLine;
@@ -119,12 +120,15 @@ final class RiffleRandom {
         return text.toString();
     }
 
+    /**
+     * A key of the one key alphabet (LANGUAGE_SPEC.md §6.2): every key a value tree can hold must
+     * also be writable, or a round trip cannot mean anything. The pieces keep the whole legal
+     * alphabet in play, including the dot, which is what makes a path segment need quoting.
+     */
     private String key() {
-        if (random.nextInt(10) == 0) {
-            return "";
-        }
         StringBuilder key = new StringBuilder();
-        int pieces = 1 + random.nextInt(4);
+        key.append(KEY_STARTS[random.nextInt(KEY_STARTS.length)]);
+        int pieces = random.nextInt(4);
         for (int i = 0; i < pieces; i++) {
             key.append(KEY_PIECES[random.nextInt(KEY_PIECES.length)]);
         }

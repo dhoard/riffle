@@ -31,7 +31,9 @@ public final class RiffleObject implements RiffleContainer {
      *
      * @param entries the entries
      * @return the map
-     * @throws IllegalArgumentException if a key contains an unpaired surrogate or U+0000
+     * @throws IllegalArgumentException if a key is not a Riffle key, because such a map could not be
+     *         written as a document that parses again; a key that holds an unpaired surrogate is
+     *         reported as such
      * @throws NullPointerException if the map, a key, or a value is null
      */
     public static RiffleObject of(Map<String, ? extends RiffleValue> entries) {
@@ -39,11 +41,14 @@ public final class RiffleObject implements RiffleContainer {
         LinkedHashMap<String, RiffleValue> copy = new LinkedHashMap<>();
         entries.forEach((key, value) -> {
             Objects.requireNonNull(key, "key");
+            // The key alphabet below is the whole rule: it rejects a surrogate as surely as anything
+            // else outside it. This check runs first only to name the likelier cause for a host
+            // string that arrived as mojibake, and neither message quotes the offending key.
             if (Syntax.hasUnpairedSurrogate(key)) {
                 throw new IllegalArgumentException("key contains an unpaired surrogate");
             }
-            if (key.indexOf('\0') >= 0) {
-                throw new IllegalArgumentException("key contains U+0000");
+            if (!Syntax.isValidKey(key)) {
+                throw new IllegalArgumentException("key must match [A-Za-z0-9_][A-Za-z0-9_.-]*");
             }
             copy.put(key, Objects.requireNonNull(value, "value"));
         });

@@ -120,7 +120,13 @@ class ValueAccessTest {
         assertThatThrownBy(() -> RiffleObject.of(Map.of("a\u0000b", value)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(RiffleString.of("a\tb\nc").asString()).isEqualTo("a\tb\nc");
-        assertThat(RiffleObject.of(Map.of("a b", value)).entries()).hasSize(1);
+        assertThatThrownBy(() -> RiffleObject.of(Map.of("a b", value)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("[A-Za-z0-9_][A-Za-z0-9_.-]*");
+        assertThatThrownBy(() -> RiffleObject.of(Map.of("", value))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RiffleObject.of(Map.of(".hidden", value)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(RiffleObject.of(Map.of("a.b", value)).entries()).hasSize(1);
         assertThatThrownBy(() -> RiffleArray.of(java.util.Arrays.asList(value, null)))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> RiffleObject.of(null)).isInstanceOf(NullPointerException.class);

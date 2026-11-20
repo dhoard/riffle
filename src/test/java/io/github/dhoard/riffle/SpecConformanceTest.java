@@ -22,8 +22,8 @@ class SpecConformanceTest {
             quotedPort : "8080"
             literalAt : "@scope/name"
 
-            # quoted key and punctuation
-            "key with spaces" : a=b
+            # quoted key spelling and punctuation
+            "dotted.key" : a=b
             url : https://example.org/a#fragment
             note : prod # primary
 
@@ -69,7 +69,7 @@ class SpecConformanceTest {
         assertThat(root.get("port").asInt()).isEqualTo(8080);
         assertThat(root.get("quotedPort").asInt()).isEqualTo(8080);
         assertThat(root.get("literalAt").asString()).isEqualTo("@scope/name");
-        assertThat(root.get("key with spaces").asString()).isEqualTo("a=b");
+        assertThat(root.get("dotted.key").asString()).isEqualTo("a=b");
         assertThat(root.get("url").asString()).isEqualTo("https://example.org/a#fragment");
         assertThat(root.get("note").asString()).isEqualTo("prod # primary");
         assertThat(root.get("emptyMap").asObject().entries()).isEmpty();
@@ -105,6 +105,10 @@ class SpecConformanceTest {
                 Arguments.of("x : [\n  1\n}", RiffleError.MISMATCHED_CLOSER),
                 Arguments.of("x : a\nx : b", RiffleError.DUPLICATE_KEY),
                 Arguments.of("@int 1 : a", RiffleError.INVALID_KEY),
+                Arguments.of("\"display name\" : a", RiffleError.INVALID_KEY),
+                Arguments.of("\"\" : a", RiffleError.INVALID_KEY),
+                Arguments.of("\".hidden\" : a", RiffleError.INVALID_KEY),
+                Arguments.of("a.b : x\n\"a.b\" : y", RiffleError.DUPLICATE_KEY),
                 Arguments.of("x : \"abc", RiffleError.UNTERMINATED_STRING),
                 Arguments.of("x : \"bad\\q\"", RiffleError.INVALID_ESCAPE),
                 Arguments.of("x : \"\\u0000\"", RiffleError.INVALID_ESCAPE),

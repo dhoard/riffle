@@ -143,16 +143,12 @@ class ParserTest {
                 schema.version : b
                 chatgpt-oauth : c
                 _x : d
-                "key with spaces" : e
-                "a=b" : f
-                "a\\"b" : g
-                "clé" : h
+                "dotted.and-dash" : e
+                "A" : f
                 """);
         assertThat(root.entries())
-                .containsOnlyKeys(
-                        "1", "schema.version", "chatgpt-oauth", "_x", "key with spaces", "a=b", "a\"b", "clé");
-        assertThat(root.get("schema.version").asString()).isEqualTo("b");
-        assertThat(root.get("key with spaces").asString()).isEqualTo("e");
+                .containsOnlyKeys("1", "schema.version", "chatgpt-oauth", "_x", "dotted.and-dash", "A");
+        assertThat(root.get("dotted.and-dash").asString()).isEqualTo("e");
     }
 
     @Test
@@ -283,7 +279,17 @@ class ParserTest {
     @Test
     void unicodeSurvives() {
         assertThat(value("k : 💡 naïve").asString()).isEqualTo("💡 naïve");
-        assertThat(map("\"clé\" : valeur").get("clé").asString()).isEqualTo("valeur");
+        assertThat(map("\"dotted.key\" : valeur").get("dotted.key").asString()).isEqualTo("valeur");
+        assertThat(map("k : 💡 naïve")).isEqualTo(map("\"k\" : 💡 naïve"));
+    }
+
+    @Test
+    void aQuotedKeyDecodesItsEscapesBeforeItIsChecked() {
+        assertThat(map("\"\\u006b\" : valeur").get("k").asString()).isEqualTo("valeur");
+        assertThatThrownBy(() -> map("\"\\u4E2D\" : valeur"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_KEY));
     }
 
     @Test

@@ -106,12 +106,19 @@ final class RiffleParser {
             if (colon < 0) {
                 throw error(RiffleError.MISSING_COLON, "expected 'key : value'", lineIndex, start);
             }
-            String candidate = Syntax.trim(raw.substring(pos, colon));
-            if (!Syntax.isBareKey(candidate)) {
-                throw error(RiffleError.INVALID_KEY, "invalid key; quote it", lineIndex, pos);
-            }
-            key = candidate;
+            key = Syntax.trim(raw.substring(pos, colon));
             pos = colon + 1;
+        }
+        // There is one key alphabet, however a key is spelled (LANGUAGE_SPEC.md §6.2), so a quoted
+        // key is validated after its escapes are decoded. The check follows the delimiter check so
+        // that a misdelimited key keeps the error its surrounding syntax shows, such as
+        // `""" : value` being MISSING_COLON.
+        if (!Syntax.isValidKey(key)) {
+            throw error(
+                    RiffleError.INVALID_KEY,
+                    "invalid key; a key matches [A-Za-z0-9_][A-Za-z0-9_.-]*",
+                    lineIndex,
+                    start);
         }
         if (frame.entries.containsKey(key)) {
             throw error(RiffleError.DUPLICATE_KEY, "duplicate key", lineIndex, start);

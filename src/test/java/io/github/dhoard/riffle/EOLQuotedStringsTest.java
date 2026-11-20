@@ -93,9 +93,14 @@ class EOLQuotedStringsTest {
 
     @Test
     void quotedKeysKeepTheFirstUnescapedQuoteRule() {
-        RiffleObject root = Riffle.parse("\"a\\\"b\" : \"He said \"hello\"\"\n");
-        assertThat(root.entries()).containsOnlyKeys("a\"b");
-        assertThat(root.get("a\"b").asString()).isEqualTo("He said \"hello\"");
+        // The escaped quote is data, so the delimiter is the closing quote of `"a\"b"` and the key
+        // text is `a"b`. A quote is outside the key alphabet, so the document fails as an invalid
+        // key rather than as a missing colon or trailing text: that is how the delimiter choice
+        // shows itself now that a key cannot be quoted into existence.
+        assertThatThrownBy(() -> Riffle.parse("\"a\\\"b\" : \"He said \"hello\"\"\n"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_KEY));
 
         assertThatThrownBy(() -> Riffle.parse("\"a\"b\" = v\n"))
                 .isInstanceOfSatisfying(

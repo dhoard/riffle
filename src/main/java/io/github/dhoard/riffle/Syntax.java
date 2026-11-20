@@ -47,9 +47,13 @@ final class Syntax {
         return s.substring(start, trimEnd(s, start));
     }
 
-    /** Returns whether {@code key} can be written without quotes. */
-    static boolean isBareKey(String key) {
-        return isBare(key, true);
+    /**
+     * Returns whether {@code key} is a Riffle key at all (LANGUAGE_SPEC.md §6.2). The alphabet is
+     * the same however the key is spelled, so a quoted key that decodes to text outside it is not a
+     * key, and every key a parser or a caller accepts can be written bare.
+     */
+    static boolean isValidKey(String key) {
+        return matchesKeyAlphabet(key, true);
     }
 
     /**
@@ -58,10 +62,10 @@ final class Syntax {
      * though a map key may hold one.
      */
     static boolean isBarePathKey(String key) {
-        return isBare(key, false);
+        return matchesKeyAlphabet(key, false);
     }
 
-    private static boolean isBare(String key, boolean dotted) {
+    private static boolean matchesKeyAlphabet(String key, boolean dotted) {
         if (key.isEmpty()) {
             return false;
         }
@@ -138,8 +142,12 @@ final class Syntax {
         return true;
     }
 
-    /** Returns {@code text} as a quoted map key; keys still close at the first unescaped quote. */
-    static String quoteKey(String text) {
+    /**
+     * Returns {@code text} as a quoted path segment (LANGUAGE_SPEC.md §10.1). A path segment is not a
+     * map key, so it may hold text a key cannot; a printed segment is read back with the
+     * first-unescaped-quote rule of §5.2.
+     */
+    static String quotePathSegment(String text) {
         return quote(text, true);
     }
 

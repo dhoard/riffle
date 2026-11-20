@@ -58,7 +58,7 @@ class WriterTest {
                 "emptyArray", array(),
                 "map", object("a", s("b")),
                 "list", array(s("a"), s("1")),
-                "key with space", s("v"),
+                "dashed-key", s("v"),
                 "a.b", s("dotted"));
         assertThat(Riffle.write(document)).isEqualTo("""
                 name : Amanda
@@ -86,15 +86,15 @@ class WriterTest {
                     a
                     1
                 ]
-                "key with space" : v
+                dashed-key : v
                 a.b : dotted
                 """);
     }
 
     @Test
     void canonicalSeparatorHasOneSpaceOnEachSide() {
-        RiffleObject parsed = Riffle.parse("a:b\n   c   :   d\n\"e f\":g\nmessage:Hello: world\n");
-        assertThat(Riffle.write(parsed)).isEqualTo("a : b\nc : d\n\"e f\" : g\nmessage : Hello: world\n");
+        RiffleObject parsed = Riffle.parse("a:b\n   c   :   d\n\"e.f\":g\nmessage:Hello: world\n");
+        assertThat(Riffle.write(parsed)).isEqualTo("a : b\nc : d\ne.f : g\nmessage : Hello: world\n");
     }
 
     @ParameterizedTest(name = "[{index}] {0}")
@@ -140,29 +140,29 @@ class WriterTest {
     }
 
     @Test
-    void keysAreQuotedOnlyWhenRequired() {
+    void keysAreAlwaysWrittenBare() {
         RiffleObject document = object(
                 "provider", s("v"),
                 "a.b", s("v"),
+                "chatgpt-oauth", s("v"),
                 "1", s("v"),
-                "_x", s("v"),
-                "a b", s("v"),
-                "a=b", s("v"),
-                "@x", s("v"),
-                "clé", s("v"),
-                "", s("v"));
+                "_x", s("v"));
         assertThat(Riffle.write(document)).isEqualTo("""
                 provider : v
                 a.b : v
+                chatgpt-oauth : v
                 1 : v
                 _x : v
-                "a b" : v
-                "a=b" : v
-                "@x" : v
-                "clé" : v
-                "" : v
                 """);
         assertThat(Riffle.parse(Riffle.write(document))).isEqualTo(document);
+    }
+
+    @Test
+    void aQuotedKeyIsWrittenBareAndNamesTheSameKey() {
+        RiffleObject parsed = Riffle.parse("\"a.b\" : v\n\"\\u0041\" : v\n");
+
+        assertThat(parsed.entries()).containsOnlyKeys("a.b", "A");
+        assertThat(Riffle.write(parsed)).isEqualTo("a.b : v\nA : v\n");
     }
 
     @Test
@@ -249,7 +249,7 @@ class WriterTest {
     @Test
     void unicodeSurvivesFiles(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("unicode.riffle");
-        RiffleObject value = object("clé", s("💡 naïve"), "escaped", s("a\nb"));
+        RiffleObject value = object("text", s("💡 naïve"), "escaped", s("a\nb"));
         Riffle.write(file, value);
         assertThat(Riffle.parse(file)).isEqualTo(value);
     }

@@ -6,7 +6,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
-/** Writes the canonical document form of LANGUAGE_SPEC.md §11.2. */
+/** Writes the canonical document form of LANGUAGE_SPEC.md §11.2, in which every key is bare. */
 final class RiffleWriter {
 
     private static final String INDENT = "    ";
@@ -44,7 +44,9 @@ final class RiffleWriter {
             }
             if (frame.map) {
                 Map.Entry<String, RiffleValue> entry = frame.entries.get(frame.index++);
-                out.append(indent(frame.level)).append(key(entry.getKey())).append(" : ");
+                // A key is always written bare: the key alphabet of §6.2 is exactly the bare form, so
+                // no key a value tree can hold needs quoting.
+                out.append(indent(frame.level)).append(entry.getKey()).append(" : ");
                 emitValue(entry.getValue(), frame.level, stack);
             } else {
                 RiffleValue element = frame.values.get(frame.index++);
@@ -75,10 +77,6 @@ final class RiffleWriter {
             out.append("[\n");
             stack.push(Frame.array(array, level + 1));
         }
-    }
-
-    private static String key(String key) {
-        return Syntax.isBareKey(key) ? key : Syntax.quoteKey(key);
     }
 
     /** Writes a string bare when possible, then as a raw block, and otherwise quoted. */

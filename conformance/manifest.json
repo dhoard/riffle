@@ -36,7 +36,7 @@
           "value": "path//segment"
         },
         {
-          "path": "\"display name\"",
+          "path": "displayName",
           "kind": "string",
           "value": "Jane Doe"
         },
@@ -927,9 +927,60 @@
       ]
     },
     {
+      "id": "valid.quoted-keys",
+      "expectation": "valid",
+      "input": "valid/quoted-keys.riffle",
+      "expectedCanonical": "canonical/quoted-keys-expected.riffle",
+      "semantics": [
+        {
+          "path": "\"schema.version\"",
+          "kind": "string",
+          "value": "1"
+        },
+        {
+          "path": "chatgpt-oauth",
+          "kind": "string",
+          "value": "open"
+        },
+        {
+          "path": "A",
+          "kind": "string",
+          "value": "upper"
+        },
+        {
+          "path": "dotted.key",
+          "kind": "missing"
+        }
+      ]
+    },
+    {
       "id": "invalid.duplicate-key",
       "expectation": "invalid",
       "input": "invalid/duplicate-key.riffle",
+      "errorCategory": "DUPLICATE_KEY"
+    },
+    {
+      "id": "invalid.quoted-key-space",
+      "expectation": "invalid",
+      "input": "invalid/quoted-key-space.riffle",
+      "errorCategory": "INVALID_KEY"
+    },
+    {
+      "id": "invalid.empty-key",
+      "expectation": "invalid",
+      "input": "invalid/empty-key.riffle",
+      "errorCategory": "INVALID_KEY"
+    },
+    {
+      "id": "invalid.leading-dot-key",
+      "expectation": "invalid",
+      "input": "invalid/leading-dot-key.riffle",
+      "errorCategory": "INVALID_KEY"
+    },
+    {
+      "id": "invalid.quoted-bare-duplicate-key",
+      "expectation": "invalid",
+      "input": "invalid/quoted-bare-duplicate-key.riffle",
       "errorCategory": "DUPLICATE_KEY"
     },
     {

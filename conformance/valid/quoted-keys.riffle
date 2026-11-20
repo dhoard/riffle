@@ -1,0 +1,8 @@
+# Quoting is spelling, not permission: each key below matches the key alphabet
+# of spec §6.2, and the canonical form writes every one of them bare.
+"schema.version" : 1
+"chatgpt-oauth" : open
+"_private" : hidden
+"\u0041" : upper
+plain : visible
+dotted.key : value

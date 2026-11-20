@@ -14,7 +14,7 @@ public enum RiffleError {
     UNTERMINATED_STRING,
     /** A multiline string line does not start with the indentation of the closing delimiter. */
     INVALID_INDENTATION,
-    /** A map key is neither a bare key nor a valid quoted key. */
+    /** A map key is empty or holds a character outside the key alphabet of LANGUAGE_SPEC.md §6.2. */
     INVALID_KEY,
     /** A map entry has no {@code :}, or a key is not followed by one. */
     MISSING_COLON,

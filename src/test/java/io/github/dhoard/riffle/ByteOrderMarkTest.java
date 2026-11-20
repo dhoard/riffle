@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * U+FEFF is legal only as the document's leading byte-order mark, so the writer must escape it
- * wherever it occurs inside a value or key.
+ * wherever it occurs inside a value. A key cannot hold it at all: it is outside the key alphabet
+ * of LANGUAGE_SPEC.md §6.2, in either spelling.
  */
 class ByteOrderMarkTest {
 
@@ -46,23 +47,28 @@ class ByteOrderMarkTest {
     }
 
     @Test
-    void aByteOrderMarkInAKeySurvivesARoundTrip() {
-        RiffleObject value = object("a" + BOM + "b", "v");
-        String written = Riffle.write(value);
-        assertThat(written).doesNotContain(BOM);
-        assertThat(Riffle.parse(written)).isEqualTo(value);
+    void aByteOrderMarkInAKeyIsRejectedInBothSpellings() {
+        assertThatThrownBy(() -> object("a" + BOM + "b", "v")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Riffle.parse("\"a\\uFEFFb\" : v\n"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_KEY));
+        // A literal byte-order mark away from the start of the document is rejected as a character
+        // before any key is read, so the spelling that shows the character reports that.
+        assertThatThrownBy(() -> Riffle.parse("a" + BOM + "b : v\n"))
+                .isInstanceOfSatisfying(
+                        RiffleParseException.class,
+                        e -> assertThat(e.category()).isEqualTo(RiffleError.INVALID_CHARACTER));
     }
 
     @Test
     void theCanonicalSpellingOfAByteOrderMarkIsAnEscape() {
         assertThat(Riffle.write(object("k", "a" + BOM + "b"))).isEqualTo("k : \"a\\uFEFFb\"\n");
-        assertThat(Riffle.write(object("a" + BOM + "b", "v"))).isEqualTo("\"a\\uFEFFb\" : v\n");
     }
 
     @Test
     void parsingAByteOrderMarkEscapeProducesTheCharacter() {
         assertThat(Riffle.parse("k : \"a\\uFEFFb\"\n").get("k").asString()).isEqualTo("a" + BOM + "b");
-        assertThat(Riffle.parse("\"\\uFEFF\" : v\n").get(BOM).asString()).isEqualTo("v");
     }
 
     @Test

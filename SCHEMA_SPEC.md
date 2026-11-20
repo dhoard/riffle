@@ -40,7 +40,7 @@ Terminology:
 
 Schema support is optional: a conforming **language** implementation is not required to offer
 schemas. An implementation that does offer them MUST behave as specified here (§18). The value
-model, key quoting, host-configurable nesting limits, scalar interpretations, and paths are defined by
+model, key alphabet, host-configurable nesting limits, scalar interpretations, and paths are defined by
 `LANGUAGE_SPEC.md` and are cited, not restated, by this document.
 
 Core properties:
@@ -55,8 +55,8 @@ Core properties:
 - A problem names constraints, never data: no data value appears in a problem (§10).
 - Validation time is **linear** in the size of the data document for a fixed schema, and a pattern
   never backtracks (§6, §14).
-- A data document holds **no schema syntax**: `riffleSchema`, `$schema` and similar keys are
-  ordinary data keys (§3).
+- A data document holds **no schema syntax**: a legal key such as `riffleSchema` is ordinary
+  data there, and a name outside the key alphabet cannot occur in a Riffle document at all (§3).
 
 ## 2. Canonical example
 
@@ -167,12 +167,18 @@ A schema document may hold only these top-level keys:
 | `root` | yes | The node that describes the data document (§4) |
 | `definitions` | no | A map from a name to a node, for reuse through `ref` (§9) |
 
-Any other top-level key is a problem (§11). A key named `riffleSchema`, `$schema`, `version`, or
-any other name is ordinary data in a **data** document: only a schema document gives these keys
-meaning, and a data document never names the schema that describes it.
+Every key in a schema document, and every name a schema declares — a `keys` member name, a
+`definitions` name, a `uniqueKey` name, and the keys named by a rule (§8) — is an ordinary Riffle
+key and MUST satisfy §6.2 of `LANGUAGE_SPEC.md`. A schema document that holds a key outside that
+alphabet is a parse failure, not a schema problem, exactly like any other syntax error.
 
-`definitions` maps a name to a node; the names are not constrained beyond being Riffle keys. A
-definition that is not reachable from `root` is a problem (§9).
+Any other top-level key is a problem (§11). A key named `riffleSchema`, `version`, `root`, or any
+other legal name is ordinary data in a **data** document: only a schema document gives these keys
+meaning, and a data document never names the schema that describes it. A name outside the key
+alphabet, such as the `$schema` of other formats, cannot occur in a Riffle document at all.
+
+`definitions` maps a name to a node; the names are not constrained beyond the Riffle key alphabet.
+A definition that is not reachable from `root` is a problem (§9).
 
 ## 4. Nodes
 
@@ -269,7 +275,9 @@ its own text, after its format problem has been reported (§12).
 
 `pattern` and `keyPattern` hold an **I-Regexp** as defined by RFC 9485, with the clarifications
 below. Patterns are matched over Unicode scalar values, and the match MUST cover the **whole**
-string: no searching, no partial match, and no implicit anchors.
+string: no searching, no partial match, and no implicit anchors. A `keyPattern` narrows which
+keys a document may use; it can never widen what a key may be, because a string outside the key
+alphabet of §6.2 of `LANGUAGE_SPEC.md` never reaches validation: the document fails to parse.
 
 The profile is the RFC 9485 grammar exactly:
 
@@ -1394,8 +1402,8 @@ The following are deliberately excluded:
   obtain a schema.
 - Extensions, custom keywords, host-language data types, and named formats such as `email` or
   `date-time`.
-- A schema reference written in a data document: a data document never names its schema, and
-  `riffleSchema` or `$schema` in data is an ordinary key.
+- A schema reference written in a data document: a data document never names its schema, and a
+  legal key such as `riffleSchema` in data is an ordinary key.
 - Imports between schema documents, and sharing nodes across documents.
 - Warnings, hints, and any problem severity below a problem.
 - Implicit insertion of defaults, computed values, coercion of a string into a number, and any

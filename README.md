@@ -60,7 +60,7 @@ Riffle is narrower than these formats. It has no inline nonempty collections, no
 
 ### Lines and whitespace
 - Files are UTF-8. A byte-order mark at the start is ignored; a BOM anywhere else is an error.
-  The writer escapes U+FEFF inside values and keys, so such a value still round-trips.
+  The writer escapes U+FEFF inside values, so such a value still round-trips; a key cannot hold it.
 - Line endings are LF or CRLF. A lone carriage return is an error.
 - Spaces and tabs separate tokens and indent lines. Indentation is significant only inside a raw block.
 - Blank lines and comment lines are ignored, including inside collections.
@@ -103,10 +103,11 @@ options : {
 Arrays work the same way: `tools : []` becomes `tools : [`, one element per line, then `]`. Writing `chatgpt-oauth : { key : Test value }` is rejected, because a value starting with `{` must be quoted or open a block.
 
 ### Keys
-- A **bare key** matches `[A-Za-z0-9_][A-Za-z0-9_.-]*`: `provider`, `chatgpt-oauth`, `1`, `schema.version`.
-- Any other key is **quoted**, using the string escapes: `"key with spaces" : value`.
+- A key matches `[A-Za-z0-9_][A-Za-z0-9_.-]*`: letters, digits, `_`, `-` and `.`, starting with a letter, digit or `_`. Examples: `provider`, `chatgpt-oauth`, `1`, `schema.version`.
+- A key may be written **quoted**, but quoting changes only the spelling: the decoded text must match the same pattern, so `"schema.version" : value` names the key `schema.version` while `"display name" : value` and `"" : value` are errors.
+- Canonical output never quotes a key: `"schema.version" : value` is written `schema.version : value`.
 - A dot in a key is a literal dot, not a path separator.
-- Keys are always strings and are case-sensitive. Duplicate keys in one map are an error.
+- Keys are always strings and are case-sensitive. Duplicate keys in one map are an error, and a bare spelling collides with the quoted spelling of the same text.
 
 ### Values
 A value is one of three kinds.
@@ -129,18 +130,18 @@ There is no null. An absent key is the only way to express "no value".
 - A quoted **value** is EOL-delimited: its opening and closing `"` are the first and last quotes on the line, after trimming trailing whitespace. Interior `"` characters are literal data; `\"` is still accepted and means the same thing. A closing quote is required on the line, and nothing but whitespace may follow it.
 - Escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f` and `\uXXXX` with surrogate pairs handled correctly.
 - Invalid escapes, isolated surrogates, `\u0000`, unclosed quotes and literal control characters are errors.
-- Quoted **keys** close at the first unescaped `"`, because a key ends at `:` rather than EOL. Interior quotes in keys must be written `\"`.
+- Quoted **keys** close at the first unescaped `"`, because a key ends at `:` rather than EOL. An interior quote in a key must be written `\"`, and a key written that way is always an error: a quote is outside the key pattern above.
 
 ```riffle
 scopedPackage : "@scope/name"
 literalComment : "# not a comment"
-"display name" : Jane Doe
+display_name : Jane Doe
 padded : "  keeps spaces  "
 a : "He said "hello""
 b : "He said \"hello\""
 ```
 
-Both `a` and `b` above decode to `He said "hello"`. The writer removes quotes that are not needed: `"display name"` keeps them, `Jane Doe` does not.
+Both `a` and `b` above decode to `He said "hello"`. The writer removes quotes that are not needed, so `Jane Doe` is written bare, and it never quotes a key.
 
 ### Multiline raw blocks
 A value or array element that is exactly `"""` opens a raw block. The block ends at the first line that holds only `"""`.
@@ -320,7 +321,7 @@ RiffleValue port = RiffleJavaValues.fromJava((Object) 8080);
 - Construction errors are `IllegalArgumentException`s; I/O failures are `IOException`s. Malformed UTF-8 in a file is a parse error with category `INVALID_UTF8`.
 
 ### Constructing values
-`RiffleObject.of(Map)`, `RiffleArray.of(List)` and `RiffleString.of(String)`. Text containing U+0000 or an unpaired surrogate is rejected.
+`RiffleObject.of(Map)`, `RiffleArray.of(List)` and `RiffleString.of(String)`. Text containing U+0000 or an unpaired surrogate is rejected, as is a key outside the key pattern above, so a value built in code can always be written as a document that parses again.
 
 ### Application-specific types
 Conversions for durations, URIs, colors or enums belong in the application as functions over `asString()`. Throw `new RiffleAccessException(value, reason)` to report them in the same form as Riffle's own errors; the category is `INVALID_VALUE`.

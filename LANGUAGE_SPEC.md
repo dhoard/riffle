@@ -80,7 +80,7 @@ A string is a sequence of Unicode scalar values: Unicode code points excluding t
 
 Literal input MUST be UTF-8 (§4). Text containing an encoded surrogate code point or an unpaired surrogate in a host-language string is not a valid Riffle string and MUST be rejected with `INVALID_UTF8`.
 
-`U+FEFF` is a Unicode scalar value and MAY occur inside a string. A literal `U+FEFF` is legal only as the first character of a document, where it is a byte-order mark (BOM) and is ignored. Anywhere else a literal `U+FEFF` is `INVALID_CHARACTER`; inside a key or string it MUST be written as the escape `﻿`. The canonical serializer always escapes `U+FEFF` inside keys and values (§11.2).
+`U+FEFF` is a Unicode scalar value and MAY occur inside a string. A literal `U+FEFF` is legal only as the first character of a document, where it is a byte-order mark (BOM) and is ignored. Anywhere else a literal `U+FEFF` is `INVALID_CHARACTER`; inside a string it MUST be written as the escape `﻿`. A key can hold no `U+FEFF` in any spelling, because it is outside the key alphabet (§6.2). The canonical serializer always escapes `U+FEFF` inside values (§11.2).
 
 ### 3.2 Maps and arrays
 
@@ -134,7 +134,7 @@ A value fragment that is exactly `"""` after trimming horizontal whitespace is a
 
 **Quoted values** (map values and array elements) are EOL-delimited. The opening delimiter is the first `"` of the value fragment. The closing delimiter is the **last `"` of that fragment**, before optional trailing horizontal whitespace. Every `"` inside the two delimiters is literal data, whether written literally or as `\"`; both spellings decode to the same quote character. The closing delimiter is a delimiter even when the immediately preceding character is a backslash, so `x : "abc\"` has a closing quote but an unfinished interior escape and is `INVALID_ESCAPE`. To end a value with a literal quote, write `x : "abc\""` or `x : "abc""`. A quoted value with no closing delimiter on its physical line is `UNTERMINATED_STRING`; escape validation applies only to the interior span. Anything after the closing delimiter other than horizontal whitespace is `TRAILING_TOKENS`, because a comment occupies a whole line (§8.1): `x : "a" # comment` is rejected rather than read as `a`.
 
-**Quoted keys are different.** A key terminates at `:` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`.
+**Quoted keys are different in their delimiter.** A key terminates at `:` rather than EOL, so its closing delimiter is the first unescaped `"`; interior literal quotes in a key MUST be written `\"`. Quoting is spelling, not permission: the decoded text MUST still satisfy the key alphabet of §6.2, so a key written with `\"` inside it always names an invalid key.
 
 Supported escapes are exactly `\"`, `\\`, `\n`, `\r`, `\t`, `\b`, `\f`, and `\uXXXX` (four ASCII hexadecimal digits). A `\uXXXX` escape denotes the code point with that value. An escape for a high surrogate MUST be immediately followed by an escape for a low surrogate; the pair denotes the corresponding supplementary code point. An isolated surrogate escape MUST be rejected with `INVALID_ESCAPE`, and so MUST `\u0000`. Invalid escape sequences and unclosed quotes MUST fail. Literal newlines, literal carriage returns, other unescaped control characters, and literal `U+FEFF` inside quoted strings are invalid; use `﻿` for the last.
 
@@ -144,7 +144,7 @@ Examples:
 scopedPackage : "@scope/name"
 literalBrace : "{"
 literalComment : "# not a comment"
-"display name" : "Jane Doe"
+"schema.version" : "Jane Doe"
 ```
 
 ### 5.3 Multiline raw blocks
@@ -191,12 +191,14 @@ Exactly one `:` separates the key from the value; `=` has no separator meaning. 
 
 ### 6.2 Keys
 
-- **Bare key:** matches `[A-Za-z0-9_][A-Za-z0-9_.-]*`. Examples: `provider`, `chatgpt-oauth`, `1`, `schema.version`.
-- **Quoted key:** a double-quoted string using the escape rules in §5.2. Use quotes for spaces, `:`, `#`, `/`, `@`, Unicode, or other characters outside the bare-key alphabet.
-- A quoted key MAY be empty: `"" : value` has the empty string as its key.
+A key MUST match `[A-Za-z0-9_][A-Za-z0-9_.-]*`: ASCII letters, ASCII digits, `_`, `-` and `.`, where the first character is a letter, a digit, or `_`. Examples: `provider`, `chatgpt-oauth`, `1`, `schema.version`, `_private`, `v2`. This is the only key alphabet: a string that fails it is not a key in any spelling. A failing key is reported as `INVALID_KEY` at the start of the key, unless an earlier rule rejects the line first: a literal `U+FEFF` is `INVALID_CHARACTER` (§3.1), and a malformed or forbidden escape is `INVALID_ESCAPE` (§5.2).
+
+- **Bare key:** a key written without quotes, as above.
+- **Quoted key:** a double-quoted string using the escape rules in §5.2. A quoted key is checked after its escapes are decoded, so quoting changes how a key is written and never what it may be. `"schema.version" : value` names the same key as `schema.version : value`, and the canonical serializer writes it bare (§11.2). `"" : value`, `"display name" : value`, `".hidden" : value` and `"-x" : value` are all `INVALID_KEY`.
+- An escape does not widen the alphabet: `"\u0041" : value` is the key `A`, and `"\u4E2D" : value` is `INVALID_KEY`. A key therefore holds no `U+0000`, no `U+FEFF`, no whitespace, no punctuation other than `-` and `.`, and no non-ASCII character.
 - Keys are always strings. Thus `1 : value` has string key `"1"`.
 - A dot in a key is a literal dot, not a path separator. `a.b : x` and `a : { b : x }` are structurally different.
-- A literal `U+FEFF` in a key is invalid; write `"﻿"`.
+- A bare spelling and a quoted spelling that decode to the same text are one key, so `a.b : x` and `"a.b" : y` in one map are duplicate keys.
 - Duplicate keys within the same map MUST be rejected. The same key may occur in different nested maps.
 - Key insertion order MUST be preserved in the semantic map model.
 
@@ -325,7 +327,7 @@ RawBlockCloseLine = S, '"""', S, EOL ;
 S                 = { " " | TAB } ;
 ```
 
-`QuotedString` has two distinct delimiter rules: quoted values use the EOL/last-quote and comment-precedence rule of §5.2, while quoted keys retain the first-unescaped-quote rule of §5.2. `BlankOrComment`, `BareString`, `RawContentLine`, `Body` association, and the scanner behavior for comments are defined by §§3–8 and are not independent token-level productions. A `RawContentLine` is any physical line that is not a `RawBlockCloseLine`. A `Body` is present when the opener is the block form (`{`, `[`, or `"""`); the inline empty forms (`{}`, `[]`) have no `Body`. It is specifically the body matching that opener, not an optional arbitrary suffix. A bare scalar is recognized only when the entire non-comment value fragment is consumed, subject to the reserved-prefix rules. This specification favors unambiguous implementation behavior over a compact standalone EBNF.
+`QuotedString` has two distinct delimiter rules: quoted values use the EOL/last-quote and comment-precedence rule of §5.2, while quoted keys retain the first-unescaped-quote rule of §5.2. `Key` is a lexical category only: the string a key denotes, after the escapes of §5.2 are decoded, MUST match `BareKey` (§6.2), so a quoted key can never name a key a bare key could not. `BlankOrComment`, `BareString`, `RawContentLine`, `Body` association, and the scanner behavior for comments are defined by §§3–8 and are not independent token-level productions. A `RawContentLine` is any physical line that is not a `RawBlockCloseLine`. A `Body` is present when the opener is the block form (`{`, `[`, or `"""`); the inline empty forms (`{}`, `[]`) have no `Body`. It is specifically the body matching that opener, not an optional arbitrary suffix. A bare scalar is recognized only when the entire non-comment value fragment is consumed, subject to the reserved-prefix rules. This specification favors unambiguous implementation behavior over a compact standalone EBNF.
 
 ### 9.1 Parser algorithm (normative behavior)
 
@@ -345,7 +347,7 @@ A raw-block opener inside a block comment is commented-out text, and a `/#` line
 6. If the value starts a nonempty block, insert its collection node at that position and push its map/array context. Do not complete the parent entry a second time when closing the block.
 7. On a standalone matching closer, pop the current context. Reject mismatched and root-level closers.
 8. At EOF, require the stack to contain only the root map context.
-9. Validate duplicate keys, reserved first characters, and that no noncomment source characters remain unconsumed on any line.
+9. Validate the key alphabet of §6.2, duplicate keys, reserved first characters, and that no noncomment source characters remain unconsumed on any line.
 
 ## 10. Error contract
 
@@ -363,7 +365,7 @@ The following categories and their triggering conditions are normative:
 | `INVALID_ESCAPE` | An unsupported quoted-string escape, malformed `\uXXXX`, isolated surrogate escape, or `\u0000` |
 | `UNTERMINATED_STRING` | A quoted string has no closing quote on its line, or a raw block has no closer |
 | `INVALID_INDENTATION` | A raw-block content line does not begin with the closer's indentation |
-| `INVALID_KEY` | A map key is neither a bare key nor a valid quoted key |
+| `INVALID_KEY` | A map key is empty or holds a character outside the key alphabet of §6.2 |
 | `MISSING_COLON` | A map entry has no `:`, or a key is not followed by one |
 | `TRAILING_TOKENS` | Characters remain after a complete value or closer, other than horizontal whitespace |
 | `INVALID_VALUE` | A bare value starts with a reserved character |
@@ -381,12 +383,12 @@ The error location for a mismatch SHOULD point to the offending element or token
 
 When a diagnostic names the value it is about, it uses a **path**: a sequence of key segments and array-index segments that addresses one value inside the document. The syntax is normative, because conformance manifests and schema problems address values with it too.
 
-- A key segment is written **bare** when it matches `[A-Za-z0-9_][A-Za-z0-9_-]*`, and **quoted** otherwise, using exactly the quoting and escaping the canonical serializer uses for a key (§11.2). A dot is a path separator, so a key that holds a dot is always quoted.
+- A key segment is written **bare** when it matches `[A-Za-z0-9_][A-Za-z0-9_-]*`, and **quoted** with the escaping of §5.2 otherwise. A dot is a path separator, so a key that holds a dot is always quoted.
 - Key segments after the first are preceded by `.`.
 - An array-index segment is `[n]` in decimal and follows the segment that addressed the array.
 - The root is the empty path, and is displayed as `(root)`.
 
-A path is therefore unambiguous. `"a.b"` is the single key `a.b`, `a.b` is the key `b` inside the key `a`, and `servers[0]."display name"` is the `display name` entry of the first element of `servers`. Keys that hold a `[`, a `"`, a space, or a character outside the bare alphabet are quoted for the same reason.
+A path is therefore unambiguous. `"a.b"` is the single key `a.b`, `a.b` is the key `b` inside the key `a`, and `servers[0]."a.b"` is the `a.b` entry of the first element of `servers`. The key alphabet of §6.2 differs from the bare path alphabet only by the dot, so a dot is the only reason a key **of a conforming document** is ever quoted in a path. A path may also name something that no conforming document could hold, as the access errors of §13.3 do when a caller asks for a key that is absent; the rule above quotes such a segment.
 
 Errors raised while reading a parsed value use the access categories of §13.3.
 
@@ -409,12 +411,12 @@ Canonical output bytes MUST be:
 - A map root emits one `key : value` line per entry in insertion order, with exactly one space before and one space after the colon.
 - An array emits one element per line in element order.
 - `{}` and `[]` are emitted for empty collections; nonempty collections use multiline block syntax.
-- Bare keys are emitted only when they can be parsed back to the same string. Otherwise the serializer emits a quoted key using exactly the escapes in §5.2, escaping interior quotes as `\"`.
+- Every key is emitted bare. The key alphabet of §6.2 is exactly the bare-key form, so a key never needs quoting and a canonical document holds no quoted key; a key that was written quoted is emitted in its bare form.
 - A string value is emitted in the first of these forms that applies:
   1. **Bare**, when it parses back to the same string. A string that begins with `#` or `/#` is not bare, because an array element is written at the start of its line, where those characters would form a comment line or a block comment (§8).
   2. **Raw block**, when the string contains at least one LF, contains no CR, no control character other than tab and LF, and no `U+FEFF`, and has no line that trims to exactly `"""`. The content lines and the closer are indented one level (four spaces) deeper than the entry or element. Empty lines are written with no indentation. Every other line, including a whitespace-only line, is prefixed with that indentation.
   3. **Single-line quoted**, using exactly the escapes in §5.2. Interior `"` is emitted literally, because the closing delimiter is the last quote on the line. The one-character string `"` is emitted as `"\""`, never as `"""`.
-- Every literal `U+FEFF` in a key or string is emitted as `﻿`.
+- Every literal `U+FEFF` in a string is emitted as `﻿`; a key cannot hold one (§6.2).
 - Canonical output MUST reparse to an equal semantic value tree. Serialization MUST NOT change kind, order, or text.
 - The root is a map; a serializer MUST reject an array root rather than emit a document that cannot be reparsed.
 - A serializer MUST accept any value tree that fits available memory. When a caller supplies a nesting limit, the serializer MUST reject a tree deeper than that limit.
@@ -499,8 +501,8 @@ port : 8080
 quotedPort : "8080"
 literalAt : "@scope/name"
 
-# quoted key and punctuation
-"key with spaces" : a=b
+# quoted key spelling and punctuation
+"dotted.key" : a=b
 url : https://example.org/a#fragment
 note : prod # primary
 
@@ -535,7 +537,7 @@ disabled : 1
 #/
 ```
 
-Expected notable distinctions: `stringTrue` is the string `true`, which a boolean accessor reads as true; `stringNull` is the string `null`; `empty` is `""`; `port` and `quotedPort` are equal strings; `note` is `prod # primary`; `query` is `SELECT *`, LF, `  FROM users`; `disabled` is absent, because a block-comment region removes whole lines (§8.2).
+Expected notable distinctions: `stringTrue` is the string `true`, which a boolean accessor reads as true; `stringNull` is the string `null`; `empty` is `""`; `port` and `quotedPort` are equal strings; `dotted.key` is `a=b`; `note` is `prod # primary`; `query` is `SELECT *`, LF, `  FROM users`; `disabled` is absent, because a block-comment region removes whole lines (§8.2).
 
 ### 15.2 Invalid cases (each snippet is a separate document)
 
@@ -551,6 +553,10 @@ Expected notable distinctions: `stringTrue` is the string `true`, which a boolea
 | `x : [\n  1\n}` | Mismatched closing delimiter |
 | `x : a\nx : b` | Duplicate key |
 | `@int 1 : a` | Invalid map key |
+| `"display name" : a` | `INVALID_KEY`: a key cannot hold a space (§6.2) |
+| `"" : a` | `INVALID_KEY`: a key cannot be empty |
+| `".hidden" : a` | `INVALID_KEY`: a key cannot begin with a dot |
+| `a.b : x\n"a.b" : y` | `DUPLICATE_KEY`: the two spellings name one key |
 | `x : "abc` | Unterminated string |
 | `x : "bad\q"` | Invalid escape |
 | `x : "\u0000"` | `INVALID_ESCAPE`: `U+0000` is banned from strings |
@@ -563,7 +569,7 @@ Expected notable distinctions: `stringTrue` is the string `true`, which a boolea
 
 ### 15.3 Required test categories
 
-Implementations SHOULD include table-driven tests covering UTF-8 and Unicode escapes; LF/CRLF/EOF; line and block comments and URL fragments; bare versus quoted strings; raw blocks and their interaction with block comments; every accepted form, boundary, and rejection of §13; empty and nested collections; order preservation; duplicate keys; delimiter mismatch; extra same-line tokens; accurate line/column errors; serializer/parser semantic round trips; and resource-limit failures.
+Implementations SHOULD include table-driven tests covering UTF-8 and Unicode escapes; LF/CRLF/EOF; line and block comments and URL fragments; bare versus quoted strings; raw blocks and their interaction with block comments; every accepted form, boundary, and rejection of §13; empty and nested collections; the key alphabet of §6.2 in both bare and quoted spelling; order preservation; duplicate keys spelled bare and spelled quoted; delimiter mismatch; extra same-line tokens; accurate line/column errors; serializer/parser semantic round trips; and resource-limit failures.
 
 ## 16. Non-goals for 0.1.0
 
