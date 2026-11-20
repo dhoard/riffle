@@ -217,18 +217,76 @@
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
                     <executions>
+                        <!--
+                          Must stay before the `test` phase: it publishes the `argLine` that
+                          surefire uses to attach the coverage agent.
+                        -->
                         <execution>
                             <id>prepare-agent</id>
+                            <phase>initialize</phase>
                             <goals>
                                 <goal>prepare-agent</goal>
                             </goals>
                         </execution>
+                        <!--
+                          Bound to `package` rather than the default `verify` so that the report
+                          exists for `package`, `verify` and `install`; Maven runs every earlier
+                          phase for the later ones.
+                        -->
                         <execution>
                             <id>report</id>
-                            <phase>verify</phase>
+                            <phase>package</phase>
                             <goals>
                                 <goal>report</goal>
                             </goals>
+                        </execution>
+                        <!--
+                          The floor is the reachable ceiling, not an aspiration: every statement
+                          below it is defensive code that an earlier phase makes unreachable from any
+                          entry point, and the reasons are recorded in
+                          plans/coverage-jacoco-100.design.md. Reaching 1.00 would mean deleting that
+                          defensive code, which is a production change rather than a test change.
+                        -->
+                        <execution>
+                            <id>check-coverage</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>INSTRUCTION</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.98</minimum>
+                                            </limit>
+                                            <limit>
+                                                <counter>BRANCH</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.95</minimum>
+                                            </limit>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.98</minimum>
+                                            </limit>
+                                            <limit>
+                                                <counter>METHOD</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.99</minimum>
+                                            </limit>
+                                            <limit>
+                                                <counter>CLASS</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>1.00</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>

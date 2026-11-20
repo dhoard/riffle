@@ -30,12 +30,14 @@ final class ValuePrinter {
                 List<Map.Entry<String, RiffleValue>> entries =
                         List.copyOf(map.entries().entrySet());
                 for (int i = entries.size() - 1; i >= 0; i--) {
-                    if (i > 0) {
-                        pending.push(", ");
-                    }
                     Map.Entry<String, RiffleValue> entry = entries.get(i);
                     pending.push(entry.getValue());
                     pending.push(entry.getKey() + "=");
+                    // The separator goes on top of the entry it follows, so it prints between the
+                    // entries rather than after all of them.
+                    if (i > 0) {
+                        pending.push(", ");
+                    }
                 }
             } else {
                 RiffleArray array = (RiffleArray) current;
